@@ -81,3 +81,40 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(INT64_MIN, 0x02, 10, 0, 0),
         std::make_tuple(1000, 0x02, 1000, 0, 1)
     ));
+/*
+ * Param Order
+ * l_operand
+ * opt
+ * r_operand
+ * expected_result
+ * expected_err
+ */
+INSTANTIATE_TEST_SUITE_P(
+    MultiplicationTest,
+    CalculationFixture,
+    ::testing::Values(
+        std::make_tuple(10, 0x03, 10, 100, 1),
+        std::make_tuple(-1, 0x03, INT64_MIN, 0, 0),
+        std::make_tuple(INT64_MIN, 0x03, -1, 0, 0),
+        std::make_tuple(INT64_MAX, 0x03, 10, 0, 0),
+        std::make_tuple(10, 0x03, INT64_MAX, 0, 0),
+        std::make_tuple(1000, 0x03, 1000000000, 0, 1)
+    ));
+/*
+ * Param Order
+ * l_operand
+ * opt
+ * r_operand
+ * expected_result
+ * expected_err
+ */
+INSTANTIATE_TEST_SUITE_P(
+    DivisionTest,
+    CalculationFixture,
+    ::testing::Values(
+        std::make_tuple(10, 0x04, 10, 0, 1),
+        std::make_tuple(-1, 0x04, INT64_MIN, 0, 0),
+        std::make_tuple(INT64_MIN, 0x04, -1, 0, 0),
+        std::make_tuple(1, 0x04, 0, 0, 0),
+        std::make_tuple(1000, 0x04, 100, 10, 1)
+    ));

@@ -8,8 +8,8 @@
 static void resolve_equation(equation_t * eq);
 static void add_callback(equation_t * eq);
 static void sub_callback(equation_t * eq);
-//static void mul_callback(equation_t * eq);
-//static void div_callback(equation_t * eq);
+static void mul_callback(equation_t * eq);
+static void div_callback(equation_t * eq);
 //static void mod_callback(equation_t * eq);
 //static void s_left_callback(equation_t * eq);
 //static void s_right_callback(equation_t * eq);
@@ -47,7 +47,7 @@ equation_t * get_equation_struct(uint32_t equation_id,
         .r_operand  = r_operand,
         .evaluation = 0,
         .opt        = opt,
-        .sign       = EQ_VAL_SIGNED,
+        .sign       = EQ_VAL_UNSIGNED,
         .result     = EQ_UNSOLVED,
     };
 
@@ -77,6 +77,12 @@ static void resolve_equation(equation_t * eq)
             break;
         case 0x02:
             sub_callback(eq);
+            break;
+        case 0x03:
+            mul_callback(eq);
+            break;
+        case 0x04:
+            div_callback(eq);
             break;
         default:
             unknown_callback(eq);
@@ -128,6 +134,74 @@ static void sub_callback(equation_t * eq)
     }
 
     eq->evaluation = eq->l_operand - eq->r_operand;
+    eq->sign = EQ_VAL_SIGNED;
+    eq->result = EQ_SOLVED;
+    return;
+}
+
+static void mul_callback(equation_t * eq)
+{
+    int64_t l_operand = (int64_t)eq->l_operand;
+    int64_t r_operand = (int64_t)eq->r_operand;
+
+    if ((-1 == l_operand) && (INT64_MIN == r_operand))
+    {
+        eq->error_msg = strdup("Overflow detected for operation\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+    if ((-1 == r_operand) && (INT64_MIN == l_operand))
+    {
+        eq->error_msg = strdup("Overflow detected for operation\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+    if ((0 != r_operand) && (l_operand > (INT64_MAX / r_operand)))
+    {
+        eq->error_msg = strdup("Overflow detected for operation\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+    if ((0 != r_operand) && (l_operand < (INT64_MIN / r_operand)))
+    {
+        eq->error_msg = strdup("Underflow detected for operation\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+
+    eq->evaluation = eq->l_operand * eq->r_operand;
+    eq->sign = EQ_VAL_SIGNED;
+    eq->result = EQ_SOLVED;
+    return;
+}
+
+static void div_callback(equation_t * eq)
+{
+    int64_t l_operand = (int64_t)eq->l_operand;
+    int64_t r_operand = (int64_t)eq->r_operand;
+
+    if (0 == r_operand)
+    {
+        eq->error_msg = strdup("Division by zero error\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+
+    if ((INT64_MIN == l_operand) && (-1 == r_operand))
+    {
+        eq->error_msg = strdup("Overflow detected for operation\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+
+    if ((INT64_MIN == r_operand) && (-1 == l_operand))
+    {
+        eq->error_msg = strdup("Overflow detected for operation\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+
+    eq->evaluation = eq->l_operand / eq->r_operand;
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
