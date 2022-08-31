@@ -1,12 +1,9 @@
 #include <gtest/gtest.h>
 #include <calculation.h>
 
-TEST(Test1, Test1)
+TEST(TestAllocs, TestAllocs)
 {
-    print_it();
-    char * h = (char *)malloc(sizeof(char) * 2);
-    h[0] = 'a';
-    h[1] = 0;
-    free(h);
-
+    equation_t * eq = get_equation_struct(10, 0x01, 30);
+    EXPECT_NE(eq, nullptr);
+    free_equation_struct(eq);
 }

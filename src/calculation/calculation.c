@@ -52,7 +52,7 @@ equation_t * get_equation_struct(uint64_t l_operand, uint8_t opt, uint64_t r_ope
  * @brief Free the equation structure
  * @param equation Pointer to the equation object
  */
-void destroy_equation_struct(equation_t * equation)
+void free_equation_struct(equation_t * equation)
 {
     if (NULL != equation->error_msg)
     {
