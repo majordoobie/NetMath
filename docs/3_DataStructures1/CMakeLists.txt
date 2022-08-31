@@ -1,0 +1,50 @@
+cmake_minimum_required(VERSION 3.16)
+project(datastructures1 VERSION 0.0.0 LANGUAGES "C")
+
+include_directories(${datastructures1_SOURCE_DIR}/include)
+
+find_program(CLANG_TIDY_PROG clang-tidy)
+if(CLANG_TIDY_PROG)
+        set(CMAKE_C_CLANG_TIDY 
+        ${CLANG_TIDY_PROG};
+        "--checks=* -llvm-include-order, -cppcoreguidelines-*, -readability-magic-numbers, -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling, -hiccp-no-assembler")
+        set(CMAKE_C_FLAGS "-g")
+    else()
+        set(CMAKE_C_COMPILER gcc)
+        set(CMAKE_C_FLAGS "-g -Wall -pedantic")
+    endif()
+
+if(EXISTS ${datastructures1_SOURCE_DIR}/src/linked_list.c)
+    add_library(linked_list SHARED ${datastructures1_SOURCE_DIR}/src/linked_list.c)
+    add_executable(test_list ${datastructures1_SOURCE_DIR}/tests/linked_list_tests.c)
+    target_link_libraries(test_list linked_list cunit)
+    # INSTALL(TARGETS linked_list test_list DESTINATION ${datastructures1_SOURCE_DIR}/build)
+endif()
+
+if(EXISTS ${datastructures1_SOURCE_DIR}/src/hash_table.c)
+    add_library(hash_table SHARED ${datastructures1_SOURCE_DIR}/src/hash_table.c)
+    add_executable(test_table ${datastructures1_SOURCE_DIR}/tests/hash_table_tests.c)
+    target_link_libraries(test_table hash_table cunit)
+    # INSTALL(TARGETS test_table hash_table DESTINATION ${datastructures1_SOURCE_DIR}/build)
+endif()
+
+if(EXISTS ${datastructures1_SOURCE_DIR}/src/stack.c)
+    add_library(stack SHARED ${datastructures1_SOURCE_DIR}/src/stack.c)
+    add_executable(test_stack ${datastructures1_SOURCE_DIR}/tests/stack_tests.c)
+    target_link_libraries(test_stack stack cunit)
+    # INSTALL(TARGETS test_stack stack DESTINATION ${datastructures1_SOURCE_DIR}/build)
+endif()
+
+if(EXISTS ${datastructures1_SOURCE_DIR}/src/queue.c)
+    add_library(queue SHARED ${datastructures1_SOURCE_DIR}/src/queue.c)
+    add_executable(test_queue ${datastructures1_SOURCE_DIR}/tests/queue_tests.c)
+    target_link_libraries(test_queue queue cunit)
+    # INSTALL(TARGETS test_queue queue DESTINATION ${datastructures1_SOURCE_DIR}/build)
+endif()
+
+if(EXISTS ${datastructures1_SOURCE_DIR}/src/queue_p.c)
+    add_library(queue_p SHARED ${datastructures1_SOURCE_DIR}/src/queue_p.c)
+    add_executable(test_queue_p ${datastructures1_SOURCE_DIR}/tests/queue_p_tests.c)
+    target_link_libraries(test_queue_p queue_p cunit)
+    # INSTALL(TARGETS test_queue_p queue_p DESTINATION ${datastructures1_SOURCE_DIR}/build)
+endif()
