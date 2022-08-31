@@ -73,7 +73,6 @@ FUNCTION(set_project_properties target_name target_include_dir)
 ENDFUNCTION()
 
 
-
 #
 # GTest_add_target sets the build path and flags for the gtest executable
 # and places the result in the ${CMAKE_BINARY_DIR}/test_bin for easy retrival

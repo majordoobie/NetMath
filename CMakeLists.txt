@@ -16,6 +16,7 @@ set(TEST_BUILD_PATH ${CMAKE_BINARY_DIR}/test_bin)
 # Include the deps
 include(deps)
 
+add_subdirectory(src/utils)
 add_subdirectory(src/calculation)
 
 # If debug is enabled make sure to include CTest at the root. This will allow

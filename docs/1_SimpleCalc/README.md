@@ -3,7 +3,7 @@ Simple Calculator in C
 ---
 ## Heading 2
 How to Use:
-./simplecalc (operand1) (operator) (operand2)
+./simplecalc (operand1) (opt) (operand2)
 
 Supported Operators:
 *  (+) addition
