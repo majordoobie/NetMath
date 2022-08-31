@@ -11,14 +11,17 @@ static void sub_callback(equation_t * eq);
 static void mul_callback(equation_t * eq);
 static void div_callback(equation_t * eq);
 static void mod_callback(equation_t * eq);
-//static void s_left_callback(equation_t * eq);
+static void s_left_callback(equation_t * eq);
 //static void s_right_callback(equation_t * eq);
 //static void and_callback(equation_t * eq);
 //static void or_callback(equation_t * eq);
 //static void xor_callback(equation_t * eq);
 //static void r_left_callback(equation_t * eq);
 //static void r_right_callback(equation_t * eq);
+
 static void unknown_callback(equation_t * eq);
+
+#define MAX_BITS 64
 
 /*!
  * @brief Allocate memory for an equation object and return it containing the
@@ -87,6 +90,9 @@ static void resolve_equation(equation_t * eq)
         case 0x05:
             mod_callback(eq);
             break;
+        case 0x06:
+            s_left_callback(eq);
+            break;
         default:
             unknown_callback(eq);
             break;
@@ -111,7 +117,7 @@ static void add_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = eq->l_operand + eq->r_operand;
+    eq->evaluation = (uint64_t)(l_operand + r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
@@ -136,7 +142,7 @@ static void sub_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = eq->l_operand - eq->r_operand;
+    eq->evaluation = (uint64_t)(l_operand - r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
@@ -172,7 +178,7 @@ static void mul_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = eq->l_operand * eq->r_operand;
+    eq->evaluation = (uint64_t)(l_operand * r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
@@ -204,7 +210,7 @@ static void div_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = eq->l_operand / eq->r_operand;
+    eq->evaluation = (uint64_t)(l_operand / r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
@@ -236,12 +242,25 @@ static void mod_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = eq->l_operand % eq->r_operand;
+    eq->evaluation = (uint64_t)(l_operand % r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
 }
 
+static void s_left_callback(equation_t * eq)
+{
+    uint64_t r_operand = eq->r_operand;
+    if (MAX_BITS > r_operand)
+    {
+        eq->error_msg = strdup("Undefined behaviour while shifting\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+    eq->evaluation = eq->l_operand << eq->r_operand;
+    eq->result = EQ_SOLVED;
+    return;
+}
 
 static void unknown_callback(equation_t * eq)
 {

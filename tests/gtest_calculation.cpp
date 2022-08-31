@@ -24,7 +24,7 @@ TEST(TestAllocs, TestAllocs)
     free_equation_struct(eq);
 }
 
-class CalculationFixture :public ::testing::TestWithParam<std::tuple<uint64_t, uint8_t, uint64_t, int, bool>>{};
+class CalculationFixture :public ::testing::TestWithParam<std::tuple<uint64_t, uint8_t, uint64_t, int64_t, bool>>{};
 
 TEST_P(CalculationFixture, TestingCalculations)
 {
@@ -34,7 +34,7 @@ TEST_P(CalculationFixture, TestingCalculations)
     if (1 == expected_succ)
     {
         EXPECT_EQ(eq->result, EQ_SOLVED) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int << "\n" << eq->error_msg;
-        if (1 == eq->result)
+        if (EQ_SOLVED == eq->result)
         {
             EXPECT_EQ(eq->evaluation, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
         }
@@ -99,7 +99,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(INT64_MIN, 0x03, -1, 0, 0),
         std::make_tuple(INT64_MAX, 0x03, 10, 0, 0),
         std::make_tuple(10, 0x03, INT64_MAX, 0, 0),
-        std::make_tuple(1000, 0x03, 1000000000, 0, 1)
+        std::make_tuple(1000, 0x03, 1000000000, 1000000000000, 1)
     ));
 
 /*
@@ -114,7 +114,7 @@ INSTANTIATE_TEST_SUITE_P(
     DivisionTest,
     CalculationFixture,
     ::testing::Values(
-        std::make_tuple(10, 0x04, 10, 0, 1),
+        std::make_tuple(10, 0x04, 10, 1, 1),
         std::make_tuple(-1, 0x04, INT64_MIN, 0, 0),
         std::make_tuple(INT64_MIN, 0x04, -1, 0, 0),
         std::make_tuple(1, 0x04, 0, 0, 0),
@@ -133,9 +133,9 @@ INSTANTIATE_TEST_SUITE_P(
     ModulusTest,
     CalculationFixture,
     ::testing::Values(
-        std::make_tuple(10, 0x04, 4, 2, 1),
-        std::make_tuple(-1, 0x04, INT64_MIN, 0, 0),
-        std::make_tuple(INT64_MIN, 0x04, -1, 0, 0),
-        std::make_tuple(1, 0x04, 0, 0, 0),
-        std::make_tuple(1000, 0x04, 100, 0, 1)
+        std::make_tuple(15, 0x05, 2, 1, 1),
+        std::make_tuple(-1, 0x05, INT64_MIN, 0, 0),
+        std::make_tuple(INT64_MIN, 0x05, -1, 0, 0),
+        std::make_tuple(1, 0x05, 0, 0, 0),
+        std::make_tuple(1000, 0x05, 100, 0, 1)
     ));
