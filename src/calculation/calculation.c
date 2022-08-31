@@ -7,7 +7,7 @@
 
 static void resolve_equation(equation_t * eq);
 static void add_callback(equation_t * eq);
-//static void sub_callback(equation_t * eq);
+static void sub_callback(equation_t * eq);
 //static void mul_callback(equation_t * eq);
 //static void div_callback(equation_t * eq);
 //static void mod_callback(equation_t * eq);
@@ -75,6 +75,9 @@ static void resolve_equation(equation_t * eq)
         case 0x01:
             add_callback(eq);
             break;
+        case 0x02:
+            sub_callback(eq);
+            break;
         default:
             unknown_callback(eq);
             break;
@@ -105,10 +108,36 @@ static void add_callback(equation_t * eq)
     return;
 }
 
+static void sub_callback(equation_t * eq)
+{
+    int64_t l_operand = (int64_t)eq->l_operand;
+    int64_t r_operand = (int64_t)eq->r_operand;
+
+
+    if ((r_operand < 0) && (l_operand > (INT64_MAX + r_operand)))
+    {
+        eq->error_msg = strdup("Overflow detected for operation\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+    if ((r_operand > 0) && (l_operand < (INT64_MIN + r_operand)))
+    {
+        eq->error_msg = strdup("Underflow detected for operation\n");
+        eq->result = EQ_FAILURE;
+        return;
+    }
+
+    eq->evaluation = eq->l_operand - eq->r_operand;
+    eq->sign = EQ_VAL_SIGNED;
+    eq->result = EQ_SOLVED;
+    return;
+}
+
+
 static void unknown_callback(equation_t * eq)
 {
-    char error[20];
-    snprintf(error, 20, "Unknown operand %x\n", eq->opt);
+    char error[30];
+    snprintf(error, 30, "Unknown operand %#02x\n", eq->opt);
     eq->error_msg = strdup(error);
     eq->result = EQ_FAILURE;
     return;

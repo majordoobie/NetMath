@@ -33,8 +33,11 @@ TEST_P(CalculationFixture, TestingCalculations)
 
     if (1 == expected_succ)
     {
-        EXPECT_EQ(eq->result, EQ_SOLVED);
-        EXPECT_EQ(eq->evaluation, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
+        EXPECT_EQ(eq->result, EQ_SOLVED) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int << "\n" << eq->error_msg;
+        if (1 == eq->result)
+        {
+            EXPECT_EQ(eq->evaluation, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
+        }
     }
     else
     {
@@ -73,8 +76,8 @@ INSTANTIATE_TEST_SUITE_P(
     SubtractionTest,
     CalculationFixture,
     ::testing::Values(
-        std::make_tuple(10, 0x01, 10, 20, 1),
-        std::make_tuple(INT64_MAX, 0x01, 10, 0, 0),
-        std::make_tuple(INT64_MIN, 0x01, -10, 0, 0),
-        std::make_tuple(1000, 0x01, 1000, 2000, 1)
+        std::make_tuple(10, 0x02, 10, 0, 1),
+        std::make_tuple(INT64_MAX, 0x02, -10, 0, 0),
+        std::make_tuple(INT64_MIN, 0x02, 10, 0, 0),
+        std::make_tuple(1000, 0x02, 1000, 0, 1)
     ));
