@@ -15,9 +15,9 @@ static void s_left_callback(equation_t * eq);
 static void s_right_callback(equation_t * eq);
 static void and_callback(equation_t * eq);
 static void or_callback(equation_t * eq);
-//static void xor_callback(equation_t * eq);
-//static void r_left_callback(equation_t * eq);
-//static void r_right_callback(equation_t * eq);
+static void xor_callback(equation_t * eq);
+static void r_left_callback(equation_t * eq);
+static void r_right_callback(equation_t * eq);
 
 static void unknown_callback(equation_t * eq);
 
@@ -101,6 +101,15 @@ static void resolve_equation(equation_t * eq)
             break;
         case 0x09:
             or_callback(eq);
+            break;
+        case 0x0a:
+            xor_callback(eq);
+            break;
+        case 0x0b:
+            r_left_callback(eq);
+            break;
+        case 0x0c:
+            r_right_callback(eq);
             break;
         default:
             unknown_callback(eq);
@@ -298,6 +307,58 @@ static void and_callback(equation_t * eq)
 static void or_callback(equation_t * eq)
 {
     eq->evaluation = eq->l_operand | eq->r_operand;
+    eq->result = EQ_SOLVED;
+    return;
+}
+
+static void xor_callback(equation_t * eq)
+{
+    eq->evaluation = eq->l_operand ^ eq->r_operand;
+    eq->result = EQ_SOLVED;
+    return;
+}
+
+static void r_left_callback(equation_t * eq)
+{
+    uint64_t l_operand = eq->l_operand;
+    uint64_t r_operand = eq->r_operand;
+
+    if (r_operand > (MAX_BITS - 1))
+    {
+        r_operand = r_operand % MAX_BITS;
+    }
+
+    if (0 != r_operand)
+    {
+        eq->evaluation = ((l_operand << r_operand) | (l_operand >> (MAX_BITS - r_operand)));
+    }
+    else
+    {
+        eq->evaluation = l_operand;
+    }
+
+    eq->result = EQ_SOLVED;
+    return;
+}
+
+static void r_right_callback(equation_t * eq)
+{
+    uint64_t l_operand = eq->l_operand;
+    uint64_t r_operand = eq->r_operand;
+
+    if (r_operand > (MAX_BITS - 1))
+    {
+        r_operand = r_operand % MAX_BITS;
+    }
+
+    if (0 != r_operand)
+    {
+        eq->evaluation = ((l_operand >> r_operand) | (l_operand << (MAX_BITS - r_operand)));
+    }
+    else
+    {
+        eq->evaluation = l_operand;
+    }
     eq->result = EQ_SOLVED;
     return;
 }

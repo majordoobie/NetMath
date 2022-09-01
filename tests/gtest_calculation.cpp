@@ -234,3 +234,62 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(0x9B5524, 0x09, 0x8B564, 0x9BF564, 1),
         std::make_tuple(0, 0x09, 0, 0, 1)
     ));
+
+/*
+ * Param Order
+ * l_operand
+ * opt
+ * r_operand
+ * expected_result
+ * expected_err
+ */
+INSTANTIATE_TEST_SUITE_P(
+    XorTest,
+    UnSignedCalcTestFixture,
+    ::testing::Values(
+        std::make_tuple(15, 0x0a, 2, 13, 1),
+        std::make_tuple(90000, 0x0a, 50, 90018, 1),
+        std::make_tuple(0x9B5524, 0x0a, 0x8B564, 0x93E040, 1),
+        std::make_tuple(0, 0x0a, 0, 0, 1)
+    ));
+
+
+/*
+ * Param Order
+ * l_operand
+ * opt
+ * r_operand
+ * expected_result
+ * expected_err
+ */
+INSTANTIATE_TEST_SUITE_P(
+    RotateLeftTest,
+    UnSignedCalcTestFixture,
+    ::testing::Values(
+        std::make_tuple(15, 0x0b, 2, 60, 1),
+        std::make_tuple(90000, 0x0b, 50, 9097271247288401925, 1),
+        std::make_tuple(90000, 0x0b, 114, 9097271247288401925, 1),
+        std::make_tuple(90000, 0x0b, 0, 90000, 1),
+        std::make_tuple(0xFFFFFFFFFFFFFFFF, 0x0b, 1, 0xFFFFFFFFFFFFFFFF, 1),
+        std::make_tuple(0xFFFFFFFFFFFFFFFE, 0x0b, 1, 0xFFFFFFFFFFFFFFFD, 1)
+    ));
+
+/*
+ * Param Order
+ * l_operand
+ * opt
+ * r_operand
+ * expected_result
+ * expected_err
+ */
+INSTANTIATE_TEST_SUITE_P(
+    RotateRightTest,
+    UnSignedCalcTestFixture,
+    ::testing::Values(
+        std::make_tuple(15, 0x0c, 2, 0xC000000000000003, 1),
+        std::make_tuple(90000, 0x0c, 50, 0x57E40000, 1),
+        std::make_tuple(90000, 0x0c, 114, 0x57E40000, 1),
+        std::make_tuple(90000, 0x0c, 0, 90000, 1),
+        std::make_tuple(0xFFFFFFFFFFFFFFFF, 0x0c, 1, 0xFFFFFFFFFFFFFFFF, 1),
+        std::make_tuple(0xFFFFFFFFFFFFFFFE, 0x0c, 1, 0x7FFFFFFFFFFFFFFF, 1)
+    ));
