@@ -198,3 +198,39 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(0x28C50F3DBE0A, 0x07, 1, 0x1462879EDF05, 1),
         std::make_tuple(1, 0x07, 64, 0, 1)
     ));
+
+/*
+ * Param Order
+ * l_operand
+ * opt
+ * r_operand
+ * expected_result
+ * expected_err
+ */
+INSTANTIATE_TEST_SUITE_P(
+    AndTest,
+    UnSignedCalcTestFixture,
+    ::testing::Values(
+        std::make_tuple(15, 0x08, 2, 2, 1),
+        std::make_tuple(90000, 0x08, 50, 16, 1),
+        std::make_tuple(0x8BA8568, 0x08, 0x8BA78C, 0x8A8508, 1),
+        std::make_tuple(0, 0x08, 0, 0, 1)
+    ));
+
+/*
+ * Param Order
+ * l_operand
+ * opt
+ * r_operand
+ * expected_result
+ * expected_err
+ */
+INSTANTIATE_TEST_SUITE_P(
+    OrTest,
+    UnSignedCalcTestFixture,
+    ::testing::Values(
+        std::make_tuple(15, 0x09, 2, 15, 1),
+        std::make_tuple(90000, 0x09, 50, 90034, 1),
+        std::make_tuple(0x9B5524, 0x09, 0x8B564, 0x9BF564, 1),
+        std::make_tuple(0, 0x09, 0, 0, 1)
+    ));

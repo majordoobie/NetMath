@@ -13,8 +13,8 @@ static void div_callback(equation_t * eq);
 static void mod_callback(equation_t * eq);
 static void s_left_callback(equation_t * eq);
 static void s_right_callback(equation_t * eq);
-//static void and_callback(equation_t * eq);
-//static void or_callback(equation_t * eq);
+static void and_callback(equation_t * eq);
+static void or_callback(equation_t * eq);
 //static void xor_callback(equation_t * eq);
 //static void r_left_callback(equation_t * eq);
 //static void r_right_callback(equation_t * eq);
@@ -95,6 +95,12 @@ static void resolve_equation(equation_t * eq)
             break;
         case 0x07:
             s_right_callback(eq);
+            break;
+        case 0x08:
+            and_callback(eq);
+            break;
+        case 0x09:
+            or_callback(eq);
             break;
         default:
             unknown_callback(eq);
@@ -281,6 +287,22 @@ static void s_right_callback(equation_t * eq)
     eq->result = EQ_SOLVED;
     return;
 }
+
+static void and_callback(equation_t * eq)
+{
+    eq->evaluation = eq->l_operand & eq->r_operand;
+    eq->result = EQ_SOLVED;
+    return;
+}
+
+static void or_callback(equation_t * eq)
+{
+    eq->evaluation = eq->l_operand | eq->r_operand;
+    eq->result = EQ_SOLVED;
+    return;
+}
+
+
 static void unknown_callback(equation_t * eq)
 {
     char error[30];
