@@ -24,9 +24,11 @@ TEST(TestAllocs, TestAllocs)
     free_equation_struct(eq);
 }
 
-class CalculationFixture :public ::testing::TestWithParam<std::tuple<uint64_t, uint8_t, uint64_t, int64_t, bool>>{};
+class SignedCalcTestFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint8_t, uint64_t, int64_t, bool>>{};
+class UnSignedCalcTestFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint8_t, uint64_t, uint64_t, bool>>{};
 
-TEST_P(CalculationFixture, TestingCalculations)
+// Parameter test handles signed testing
+TEST_P(SignedCalcTestFixture, TestingCalculations)
 {
     auto [l_opr, opt, r_optr, expected_int, expected_succ] = GetParam();
     equation_t * eq = get_equation_struct(0, l_opr, opt, r_optr);
@@ -46,6 +48,26 @@ TEST_P(CalculationFixture, TestingCalculations)
     free_equation_struct(eq);
 }
 
+// Parameter test handles unsigned testing
+TEST_P(UnSignedCalcTestFixture, TestingCalculations)
+{
+    auto [l_opr, opt, r_optr, expected_int, expected_succ] = GetParam();
+    equation_t * eq = get_equation_struct(0, l_opr, opt, r_optr);
+
+    if (1 == expected_succ)
+    {
+        EXPECT_EQ(eq->result, EQ_SOLVED) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int << "\n" << eq->error_msg;
+        if (EQ_SOLVED == eq->result)
+        {
+            EXPECT_EQ(eq->evaluation, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
+        }
+    }
+    else
+    {
+        EXPECT_EQ(eq->result, EQ_FAILURE);
+    }
+    free_equation_struct(eq);
+}
 /*
  * Param Order
  * l_operand
@@ -55,9 +77,9 @@ TEST_P(CalculationFixture, TestingCalculations)
  * expected_err
  */
 INSTANTIATE_TEST_SUITE_P(
-        AdditionTests,
-        CalculationFixture,
-        ::testing::Values(
+    AdditionTests,
+    SignedCalcTestFixture,
+    ::testing::Values(
             std::make_tuple(10, 0x01, 10, 20, 1),
             std::make_tuple(INT64_MAX, 0x01, 10, 0, 0),
             std::make_tuple(INT64_MIN, 0x01, -10, 0, 0),
@@ -74,7 +96,7 @@ INSTANTIATE_TEST_SUITE_P(
  */
 INSTANTIATE_TEST_SUITE_P(
     SubtractionTest,
-    CalculationFixture,
+    SignedCalcTestFixture,
     ::testing::Values(
         std::make_tuple(10, 0x02, 10, 0, 1),
         std::make_tuple(INT64_MAX, 0x02, -10, 0, 0),
@@ -92,7 +114,7 @@ INSTANTIATE_TEST_SUITE_P(
  */
 INSTANTIATE_TEST_SUITE_P(
     MultiplicationTest,
-    CalculationFixture,
+    SignedCalcTestFixture,
     ::testing::Values(
         std::make_tuple(10, 0x03, 10, 100, 1),
         std::make_tuple(-1, 0x03, INT64_MIN, 0, 0),
@@ -112,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(
  */
 INSTANTIATE_TEST_SUITE_P(
     DivisionTest,
-    CalculationFixture,
+    SignedCalcTestFixture,
     ::testing::Values(
         std::make_tuple(10, 0x04, 10, 1, 1),
         std::make_tuple(-1, 0x04, INT64_MIN, 0, 0),
@@ -131,11 +153,48 @@ INSTANTIATE_TEST_SUITE_P(
  */
 INSTANTIATE_TEST_SUITE_P(
     ModulusTest,
-    CalculationFixture,
+    SignedCalcTestFixture,
     ::testing::Values(
         std::make_tuple(15, 0x05, 2, 1, 1),
         std::make_tuple(-1, 0x05, INT64_MIN, 0, 0),
         std::make_tuple(INT64_MIN, 0x05, -1, 0, 0),
         std::make_tuple(1, 0x05, 0, 0, 0),
         std::make_tuple(1000, 0x05, 100, 0, 1)
+    ));
+
+/*
+ * Param Order
+ * l_operand
+ * opt
+ * r_operand
+ * expected_result
+ * expected_err
+ */
+INSTANTIATE_TEST_SUITE_P(
+    LeftShiftTest,
+    UnSignedCalcTestFixture,
+    ::testing::Values(
+        std::make_tuple(15, 0x06, 2, 60, 1),
+        std::make_tuple(90000, 0x06, 50, 0x7E40000000000000, 1),
+        std::make_tuple(0x7E40000000000000, 0x06, 1, 0xFC80000000000000, 1),
+        std::make_tuple(0xFC80000000000000, 0x06, 1, 0xF900000000000000, 1),
+        std::make_tuple(1, 0x06, 64, 1, 1)
+    ));
+/*
+ * Param Order
+ * l_operand
+ * opt
+ * r_operand
+ * expected_result
+ * expected_err
+ */
+INSTANTIATE_TEST_SUITE_P(
+    RightShiftTest,
+    UnSignedCalcTestFixture,
+    ::testing::Values(
+        std::make_tuple(15, 0x07, 2, 3, 1),
+        std::make_tuple(90000, 0x07, 50, 0, 1),
+        std::make_tuple(0x518A1E7B7C14, 0x07, 1, 0x28C50F3DBE0A, 1),
+        std::make_tuple(0x28C50F3DBE0A, 0x07, 1, 0x1462879EDF05, 1),
+        std::make_tuple(1, 0x07, 64, 0, 1)
     ));

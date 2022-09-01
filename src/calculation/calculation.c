@@ -12,7 +12,7 @@ static void mul_callback(equation_t * eq);
 static void div_callback(equation_t * eq);
 static void mod_callback(equation_t * eq);
 static void s_left_callback(equation_t * eq);
-//static void s_right_callback(equation_t * eq);
+static void s_right_callback(equation_t * eq);
 //static void and_callback(equation_t * eq);
 //static void or_callback(equation_t * eq);
 //static void xor_callback(equation_t * eq);
@@ -92,6 +92,9 @@ static void resolve_equation(equation_t * eq)
             break;
         case 0x06:
             s_left_callback(eq);
+            break;
+        case 0x07:
+            s_right_callback(eq);
             break;
         default:
             unknown_callback(eq);
@@ -250,18 +253,34 @@ static void mod_callback(equation_t * eq)
 
 static void s_left_callback(equation_t * eq)
 {
+    uint64_t l_operand = eq->l_operand;
     uint64_t r_operand = eq->r_operand;
-    if (MAX_BITS > r_operand)
+
+    // If r_operand is higher than max bits, then molus it to "rotate" around
+    if (r_operand > (MAX_BITS - 1))
     {
-        eq->error_msg = strdup("Undefined behaviour while shifting\n");
-        eq->result = EQ_FAILURE;
-        return;
+        r_operand = r_operand % MAX_BITS;
     }
-    eq->evaluation = eq->l_operand << eq->r_operand;
+    eq->evaluation = l_operand << r_operand;
     eq->result = EQ_SOLVED;
     return;
 }
 
+static void s_right_callback(equation_t * eq)
+{
+    uint64_t l_operand = eq->l_operand;
+    uint64_t r_operand = eq->r_operand;
+
+    // If r_operand is higher than max_bits, then set it to max bits which
+    // will wipe the value to 0
+    if (r_operand > (MAX_BITS - 1))
+    {
+        r_operand = MAX_BITS - 1;
+    }
+    eq->evaluation = l_operand >> r_operand;
+    eq->result = EQ_SOLVED;
+    return;
+}
 static void unknown_callback(equation_t * eq)
 {
     char error[30];
