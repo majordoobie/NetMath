@@ -4,6 +4,9 @@
 
 
 int possible_paths = 3;
+// The path can change depending on how you are running the tests. If running
+// from builder.py then the second path is used. If running from the test
+// bind folder then the last path is used.
 const char * base_paths[3] = {"tests/equ_files/",
                               "../../tests/equ_files/",
                               "../../../../tests/equ_files/"};
