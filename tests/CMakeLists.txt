@@ -1,12 +1,14 @@
 add_executable(
-        gtest_calculation
+        gtest_cal_and_parser
         gtest_calculation.cpp
+        gtest_header_parser.cpp
 )
 
 target_link_libraries(
-        gtest_calculation
+        gtest_cal_and_parser
         PUBLIC
         calculation
+        header_parser
 )
 include(BuildUtils)
-GTest_add_target(gtest_calculation)
+GTest_add_target(gtest_calc_and_parser)
