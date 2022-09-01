@@ -11,4 +11,4 @@ target_link_libraries(
         header_parser
 )
 include(BuildUtils)
-GTest_add_target(gtest_calc_and_parser)
+GTest_add_target(gtest_cal_and_parser)
