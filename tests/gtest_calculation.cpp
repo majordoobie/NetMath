@@ -5,7 +5,7 @@ struct hexchar
 {
     char c;
 };
-
+// Function makes it possible to print hex in GCC.
 std::ostream& operator<<(std::ostream& os, hexchar h)
 {
     auto f = os.flags();
@@ -16,6 +16,7 @@ std::ostream& operator<<(std::ostream& os, hexchar h)
     return os;
 }
 
+// Simple function to get started
 TEST(TestAllocs, TestAllocs)
 {
     equation_t * eq = get_equation_struct(0, 10, 0x01, 30);
@@ -24,6 +25,19 @@ TEST(TestAllocs, TestAllocs)
     free_equation_struct(eq);
 }
 
+/*
+ * Both classes below perform parameterized testing. The first one is for the
+ * cases where a signed int is expected as a return value while the second
+ * is to test the rest of the calculations that expect an unsigned int
+ *
+ * The parameter massed in is a tuple of the following values:
+ *
+ * l_operand (uint64_t)
+ * operator  (uint8_t)
+ * r_operand (uint64_t)
+ * expected_result (int64_t/uint64_t)
+ * Expected to pass (bool)
+*/
 class SignedCalcTestFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint8_t, uint64_t, int64_t, bool>>{};
 class UnSignedCalcTestFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint8_t, uint64_t, uint64_t, bool>>{};
 
