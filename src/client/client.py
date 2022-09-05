@@ -1,17 +1,23 @@
 import argparse
 import asyncio
+import struct
 from concurrent.futures import ThreadPoolExecutor, as_completed, wait, \
     ALL_COMPLETED
 from pathlib import Path
+import socket
+
+FILE_NAME_MAX_LENGTH = 24
+NET_HEADER_SIZE = 48
 
 
-def main():
+async def main():
     args = _args()
     _verify_dirs(args)
 
     file_names = [file.resolve() for file in args.in_folder.iterdir()
                   if file.suffix == ".equ"]
 
+    loop = asyncio.get_event_loop()
     # User threadpool to call the client connection function. The threadpool
     # will use CPUnum + 4 for worker count
     with ThreadPoolExecutor() as executor:
@@ -23,7 +29,32 @@ def main():
 
 
 def _client_connection(args: argparse.Namespace, file_name: Path) -> None:
-    print(f"f - {file_name}")
+    # print("got first callback")
+    data = None
+    with file_name.open("rb") as equ:
+        data = equ.read()
+
+    file_name_len = len(file_name.name)
+    # Raise error if the file name is too long
+    if file_name_len > FILE_NAME_MAX_LENGTH:
+        raise ValueError(f"File {file_name.name} is too long")
+
+    stream_size = file_name_len + len(data)
+
+    header = struct.pack(">IIQ32s", NET_HEADER_SIZE, file_name_len,
+                         stream_size, file_name.name.encode(encoding="utf-8"))
+
+    if len(header) != NET_HEADER_SIZE:
+        raise ValueError(f"Header size is too big for file {file_name.name}")
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as fd:
+        fd.connect((args.host, args.port))
+        fd.sendall(header + data)
+
+
+async def second_callback(args):
+    print("Got second callbcak")
+
 
 
 def _verify_dirs(args: argparse.Namespace) -> None:
@@ -49,7 +80,7 @@ def _args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "-s", "--source", dest="ip", default="127.0.0.1", metavar="",
+        "-s", "--source", dest="host", default="127.0.0.1", metavar="",
         help="Specify the address of the server. (Default: %(default)s)"
     )
     parser.add_argument(
@@ -70,4 +101,4 @@ def _args() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
