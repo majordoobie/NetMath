@@ -12,6 +12,15 @@ extern "C" {
 #define SIGNED_OUTPUT   0x01
 #define UNSIGNED_OUTPUT 0x02
 
+typedef enum {
+    NET_HEADER_SIZE         = 4,
+    NET_FILE_NAME_LEN       = 4,
+    NET_TOTAL_PACKET_SIZE   = 8,
+    NET_FILE_NAME           = 32,
+    NET_MAX_HEADER_SIZE     = 48,
+    NET_MAX_FILE_NAME       = 24
+} NET_HEADER_BYTES;
+
 typedef enum
 {
     HEAD_MAGIC                  = 4,
@@ -72,6 +81,15 @@ typedef struct equations_t
     unsolved_eq_t * eqs;
     unsolved_eq_t * tail;
 } equations_t;
+
+typedef struct net_header_t
+{
+    uint32_t header_size;
+    uint32_t name_len;
+    uint64_t total_payload_size;
+    uint8_t file_name[32];
+} net_header_t;
+
 
 equations_t * parse_stream(int fd);
 void free_equation(equations_t * eq);

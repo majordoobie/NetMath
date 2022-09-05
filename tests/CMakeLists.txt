@@ -1,32 +1,20 @@
 include(BuildUtils)
 
 #
-# Calculation testing target
+# Test the actual calculations between operands and test the parsing of the
+# headers coming in
 #
 add_executable(
-        gtest_calculation
+        gtest_parser
         gtest_calculation.cpp
-)
-
-target_link_libraries(
-        gtest_calculation
-        PUBLIC
-        calculation
-)
-GTest_add_target(gtest_calculation)
-
-#
-# Header Parser testing target
-#
-add_executable(
-        gtest_header_parser
         gtest_header_parser.cpp
 )
-target_link_libraries(
-        gtest_header_parser
-        PUBLIC
-        header_parser
-        calculation
-)
 
-GTest_add_target(gtest_header_parser)
+target_link_libraries(
+        gtest_parser
+        PUBLIC
+        calculation
+        header_parser
+)
+GTest_add_target(gtest_parser)
+
