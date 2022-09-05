@@ -7,9 +7,9 @@ int possible_paths = 3;
 // The path can change depending on how you are running the tests. If running
 // from builder.py then the second path is used. If running from the test
 // bind folder then the last path is used.
-const char * base_paths[3] = {"tests/equ_files/",
-                              "../../tests/equ_files/",
-                              "../../../../tests/equ_files/"};
+const char * base_paths[3] = {"tests/unsolved/",
+                              "../../tests/unsolved/",
+                              "../../../../tests/unsolved/"};
 
 int get_file(const char * file_name)
 {
@@ -36,6 +36,23 @@ TEST(Simple, Simple)
 
     uint32_t magic_filed = 0;
     read(file, &magic_filed, HEAD_MAGIC);
-    EXPECT_EQ(magic_filed, MAGIC_VALUE);
+    ASSERT_EQ(magic_filed, MAGIC_VALUE);
+    lseek(file, 0, SEEK_SET);
+
+    equations_t * eqs = parse_stream(file);
+    ASSERT_NE(eqs, nullptr);
+
+    // Test th of the opts are within the accepted range. Any miss alignment
+    // should show up here
+    unsolved_eq_t * un_eq = eqs->eqs;
+    while (NULL != un_eq)
+    {
+        EXPECT_TRUE((un_eq->opt >= 0) && (un_eq->opt <= 0x0c));
+        un_eq = un_eq->next;
+    }
+
+    free_equation(eqs);
     close(file);
 }
+
+

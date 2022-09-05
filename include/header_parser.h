@@ -3,6 +3,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif //END __cplusplus
+#include <stdint.h>
 
 #define MAGIC_VALUE     0xDD77BB55
 #define UNSOLVED_VAL    0x00
@@ -46,7 +47,32 @@ typedef enum
     R_OPERAND   = 8
 } SERIALIZED_EQU_FORMAT;
 
-void print(void);
+
+typedef struct unsolved_eq_t unsolved_eq_t;
+typedef struct unsolved_eq_t
+{
+    uint32_t eq_id;
+    uint8_t flags;
+    uint64_t l_operand;
+    uint8_t opt;
+    uint64_t r_operand;
+    unsolved_eq_t * next;
+} unsolved_eq_t;
+
+typedef struct equations_t
+{
+    uint32_t magic_id;
+    uint64_t file_id;
+    uint64_t number_of_eq;
+    uint8_t flags;
+    uint32_t offset;
+    uint16_t num_of_opts;
+    unsolved_eq_t * eqs;
+    unsolved_eq_t * tail;
+} equations_t;
+
+equations_t * parse_stream(int fd);
+void free_equation(equations_t * eq);
 
 #ifdef __cplusplus
 }
