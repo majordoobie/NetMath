@@ -26,6 +26,7 @@ target_link_libraries(
         gtest_header_parser
         PUBLIC
         header_parser
+        calculation
 )
 
 GTest_add_target(gtest_header_parser)

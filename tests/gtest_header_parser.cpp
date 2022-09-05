@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <header_parser.h>
 #include <fcntl.h>
+#include <calculation.h>
 
 
 int possible_paths = 3;
@@ -48,8 +49,22 @@ TEST(Simple, Simple)
     while (NULL != un_eq)
     {
         EXPECT_TRUE((un_eq->opt >= 0) && (un_eq->opt <= 0x0c));
+        solution_t * eq = get_equation_struct(un_eq->eq_id, un_eq->l_operand, un_eq->opt, un_eq->r_operand);
+
+        if (EQ_VAL_SIGNED == eq->sign)
+        {
+            printf("%ld\n%d\n%ld\n", (int64_t)eq->l_operand, eq->opt, (int64_t)eq->r_operand);
+        }
+        else
+        {
+            printf("%ld\n%d\n%ld\n", eq->l_operand, eq->opt, eq->r_operand);
+        }
+        printf("Result: %ld\nStatus:%s\n\n", eq->solution, (eq->result == EQ_SOLVED) ? "Solved" : "Failure");
+
         un_eq = un_eq->next;
     }
+
+
 
     free_equation(eqs);
     close(file);

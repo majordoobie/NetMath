@@ -11,7 +11,7 @@ static int8_t read_stream(int fd, equations_t * eq, void * buff, size_t size);
  * with each section. If the read bytes does not match the amount required, free
  * the structure and return NULL;
  * @param fd File descriptor to read from
- * @return Pointer to the equation_t object
+ * @return Pointer to the solution_t object
  */
 equations_t * parse_stream(int fd)
 {
@@ -69,7 +69,7 @@ equations_t * parse_stream(int fd)
             return NULL;
         }
 
-        // Attach the un_eq structure to the equation_t structure at the tail
+        // Attach the un_eq structure to the solution_t structure at the tail
         if (NULL == eqs->tail)
         {
             eqs->eqs = un_eq;

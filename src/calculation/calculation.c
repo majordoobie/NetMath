@@ -5,21 +5,21 @@
 
 
 
-static void resolve_equation(equation_t * eq);
-static void add_callback(equation_t * eq);
-static void sub_callback(equation_t * eq);
-static void mul_callback(equation_t * eq);
-static void div_callback(equation_t * eq);
-static void mod_callback(equation_t * eq);
-static void s_left_callback(equation_t * eq);
-static void s_right_callback(equation_t * eq);
-static void and_callback(equation_t * eq);
-static void or_callback(equation_t * eq);
-static void xor_callback(equation_t * eq);
-static void r_left_callback(equation_t * eq);
-static void r_right_callback(equation_t * eq);
+static void resolve_equation(solution_t * eq);
+static void add_callback(solution_t * eq);
+static void sub_callback(solution_t * eq);
+static void mul_callback(solution_t * eq);
+static void div_callback(solution_t * eq);
+static void mod_callback(solution_t * eq);
+static void s_left_callback(solution_t * eq);
+static void s_right_callback(solution_t * eq);
+static void and_callback(solution_t * eq);
+static void or_callback(solution_t * eq);
+static void xor_callback(solution_t * eq);
+static void r_left_callback(solution_t * eq);
+static void r_right_callback(solution_t * eq);
 
-static void unknown_callback(equation_t * eq);
+static void unknown_callback(solution_t * eq);
 
 #define MAX_BITS 64
 
@@ -32,23 +32,23 @@ static void unknown_callback(equation_t * eq);
  * @return Pointer to an allocated equation object or NULL if unable to allocate
  * memory
  */
-equation_t * get_equation_struct(uint32_t equation_id,
+solution_t * get_equation_struct(uint32_t equation_id,
                                  uint64_t l_operand,
                                  uint8_t opt,
                                  uint64_t r_operand)
 {
-    equation_t * equation = (equation_t *)malloc(sizeof(equation_t));
+    solution_t * equation = (solution_t *)malloc(sizeof(solution_t));
     if (UV_INVALID_ALLOC == verify_alloc(equation))
     {
         return NULL;
     }
 
-    *equation = (equation_t) {
+    *equation = (solution_t) {
         .eq_id      = equation_id,
         .error_msg  = NULL,
         .l_operand  = l_operand,
         .r_operand  = r_operand,
-        .evaluation = 0,
+        .solution = 0,
         .opt        = opt,
         .sign       = EQ_VAL_UNSIGNED,
         .result     = EQ_UNSOLVED,
@@ -62,7 +62,7 @@ equation_t * get_equation_struct(uint32_t equation_id,
  * @brief Free the equation structure
  * @param equation Pointer to the equation object
  */
-void free_equation_struct(equation_t * equation)
+void free_equation_struct(solution_t * equation)
 {
     if (NULL != equation->error_msg)
     {
@@ -71,7 +71,7 @@ void free_equation_struct(equation_t * equation)
     free(equation);
 }
 
-static void resolve_equation(equation_t * eq)
+static void resolve_equation(solution_t * eq)
 {
     switch(eq->opt)
     {
@@ -117,7 +117,7 @@ static void resolve_equation(equation_t * eq)
     }
 }
 
-static void add_callback(equation_t * eq)
+static void add_callback(solution_t * eq)
 {
     int64_t l_operand = (int64_t)eq->l_operand;
     int64_t r_operand = (int64_t)eq->r_operand;
@@ -135,13 +135,13 @@ static void add_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = (uint64_t)(l_operand + r_operand);
+    eq->solution = (uint64_t)(l_operand + r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void sub_callback(equation_t * eq)
+static void sub_callback(solution_t * eq)
 {
     int64_t l_operand = (int64_t)eq->l_operand;
     int64_t r_operand = (int64_t)eq->r_operand;
@@ -160,13 +160,13 @@ static void sub_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = (uint64_t)(l_operand - r_operand);
+    eq->solution = (uint64_t)(l_operand - r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void mul_callback(equation_t * eq)
+static void mul_callback(solution_t * eq)
 {
     int64_t l_operand = (int64_t)eq->l_operand;
     int64_t r_operand = (int64_t)eq->r_operand;
@@ -196,13 +196,13 @@ static void mul_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = (uint64_t)(l_operand * r_operand);
+    eq->solution = (uint64_t)(l_operand * r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void div_callback(equation_t * eq)
+static void div_callback(solution_t * eq)
 {
     int64_t l_operand = (int64_t)eq->l_operand;
     int64_t r_operand = (int64_t)eq->r_operand;
@@ -228,13 +228,13 @@ static void div_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = (uint64_t)(l_operand / r_operand);
+    eq->solution = (uint64_t)(l_operand / r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void mod_callback(equation_t * eq)
+static void mod_callback(solution_t * eq)
 {
     int64_t l_operand = (int64_t)eq->l_operand;
     int64_t r_operand = (int64_t)eq->r_operand;
@@ -260,13 +260,13 @@ static void mod_callback(equation_t * eq)
         return;
     }
 
-    eq->evaluation = (uint64_t)(l_operand % r_operand);
+    eq->solution = (uint64_t)(l_operand % r_operand);
     eq->sign = EQ_VAL_SIGNED;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void s_left_callback(equation_t * eq)
+static void s_left_callback(solution_t * eq)
 {
     uint64_t l_operand = eq->l_operand;
     uint64_t r_operand = eq->r_operand;
@@ -276,12 +276,12 @@ static void s_left_callback(equation_t * eq)
     {
         r_operand = r_operand % MAX_BITS;
     }
-    eq->evaluation = l_operand << r_operand;
+    eq->solution = l_operand << r_operand;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void s_right_callback(equation_t * eq)
+static void s_right_callback(solution_t * eq)
 {
     uint64_t l_operand = eq->l_operand;
     uint64_t r_operand = eq->r_operand;
@@ -292,56 +292,33 @@ static void s_right_callback(equation_t * eq)
     {
         r_operand = MAX_BITS - 1;
     }
-    eq->evaluation = l_operand >> r_operand;
+    eq->solution = l_operand >> r_operand;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void and_callback(equation_t * eq)
+static void and_callback(solution_t * eq)
 {
-    eq->evaluation = eq->l_operand & eq->r_operand;
+    eq->solution = eq->l_operand & eq->r_operand;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void or_callback(equation_t * eq)
+static void or_callback(solution_t * eq)
 {
-    eq->evaluation = eq->l_operand | eq->r_operand;
+    eq->solution = eq->l_operand | eq->r_operand;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void xor_callback(equation_t * eq)
+static void xor_callback(solution_t * eq)
 {
-    eq->evaluation = eq->l_operand ^ eq->r_operand;
+    eq->solution = eq->l_operand ^ eq->r_operand;
     eq->result = EQ_SOLVED;
     return;
 }
 
-static void r_left_callback(equation_t * eq)
-{
-    uint64_t l_operand = eq->l_operand;
-    uint64_t r_operand = eq->r_operand;
-
-    if (r_operand > (MAX_BITS - 1))
-    {
-        r_operand = r_operand % MAX_BITS;
-    }
-
-    if (0 != r_operand)
-    {
-        eq->evaluation = ((l_operand << r_operand) | (l_operand >> (MAX_BITS - r_operand)));
-    }
-    else
-    {
-        eq->evaluation = l_operand;
-    }
-
-    eq->result = EQ_SOLVED;
-    return;
-}
-
-static void r_right_callback(equation_t * eq)
+static void r_left_callback(solution_t * eq)
 {
     uint64_t l_operand = eq->l_operand;
     uint64_t r_operand = eq->r_operand;
@@ -353,18 +330,41 @@ static void r_right_callback(equation_t * eq)
 
     if (0 != r_operand)
     {
-        eq->evaluation = ((l_operand >> r_operand) | (l_operand << (MAX_BITS - r_operand)));
+        eq->solution = ((l_operand << r_operand) | (l_operand >> (MAX_BITS - r_operand)));
     }
     else
     {
-        eq->evaluation = l_operand;
+        eq->solution = l_operand;
+    }
+
+    eq->result = EQ_SOLVED;
+    return;
+}
+
+static void r_right_callback(solution_t * eq)
+{
+    uint64_t l_operand = eq->l_operand;
+    uint64_t r_operand = eq->r_operand;
+
+    if (r_operand > (MAX_BITS - 1))
+    {
+        r_operand = r_operand % MAX_BITS;
+    }
+
+    if (0 != r_operand)
+    {
+        eq->solution = ((l_operand >> r_operand) | (l_operand << (MAX_BITS - r_operand)));
+    }
+    else
+    {
+        eq->solution = l_operand;
     }
     eq->result = EQ_SOLVED;
     return;
 }
 
 
-static void unknown_callback(equation_t * eq)
+static void unknown_callback(solution_t * eq)
 {
     char error[30];
     snprintf(error, 30, "Unknown operand %#02x\n", eq->opt);
