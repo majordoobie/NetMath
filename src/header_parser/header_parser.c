@@ -128,6 +128,11 @@ void free_equation(equations_t * eq)
         void * free_tmp;
         while (NULL != eqs)
         {
+            // Free the result if there is one defined
+            if (NULL != eqs->solution)
+            {
+                free_equation_struct(eqs->solution);
+            }
             free_tmp = eqs;
             eqs = eqs->next;
             free(free_tmp);

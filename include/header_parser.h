@@ -4,6 +4,7 @@
 extern "C" {
 #endif //END __cplusplus
 #include <stdint.h>
+#include <calculation.h>
 
 #define MAGIC_VALUE     0xDD77BB55
 #define UNSOLVED_VAL    0x00
@@ -57,6 +58,7 @@ typedef struct unsolved_eq_t
     uint8_t opt;
     uint64_t r_operand;
     unsolved_eq_t * next;
+    solution_t * solution;
 } unsolved_eq_t;
 
 typedef struct equations_t

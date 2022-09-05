@@ -50,6 +50,11 @@ TEST(Simple, Simple)
     {
         EXPECT_TRUE((un_eq->opt >= 0) && (un_eq->opt <= 0x0c));
         solution_t * eq = get_equation_struct(un_eq->eq_id, un_eq->l_operand, un_eq->opt, un_eq->r_operand);
+        if (NULL == eq)
+        {
+            continue;
+        }
+        un_eq->solution = eq;
 
         if (EQ_VAL_SIGNED == eq->sign)
         {
@@ -60,7 +65,6 @@ TEST(Simple, Simple)
             printf("%ld\n%d\n%ld\n", eq->l_operand, eq->opt, eq->r_operand);
         }
         printf("Result: %ld\nStatus:%s\n\n", eq->solution, (eq->result == EQ_SOLVED) ? "Solved" : "Failure");
-
         un_eq = un_eq->next;
     }
 
