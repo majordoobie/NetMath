@@ -19,7 +19,7 @@ std::ostream& operator<<(std::ostream& os, hexchar h)
 // Simple function to get started
 TEST(TestAllocs, TestAllocs)
 {
-    equation_t * eq = get_equation_struct(0, 10, 0x01, 30);
+    solution_t * eq = get_equation_struct(0, 10, 0x01, 30);
 
     EXPECT_NE(eq, nullptr);
     free_equation_struct(eq);
@@ -45,14 +45,14 @@ class UnSignedCalcTestFixture : public ::testing::TestWithParam<std::tuple<uint6
 TEST_P(SignedCalcTestFixture, TestingCalculations)
 {
     auto [l_opr, opt, r_optr, expected_int, expected_succ] = GetParam();
-    equation_t * eq = get_equation_struct(0, l_opr, opt, r_optr);
+    solution_t * eq = get_equation_struct(0, l_opr, opt, r_optr);
 
     if (1 == expected_succ)
     {
         EXPECT_EQ(eq->result, EQ_SOLVED) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int << "\n" << eq->error_msg;
         if (EQ_SOLVED == eq->result)
         {
-            EXPECT_EQ(eq->evaluation, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
+            EXPECT_EQ(eq->solution, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
         }
     }
     else
@@ -66,14 +66,14 @@ TEST_P(SignedCalcTestFixture, TestingCalculations)
 TEST_P(UnSignedCalcTestFixture, TestingCalculations)
 {
     auto [l_opr, opt, r_optr, expected_int, expected_succ] = GetParam();
-    equation_t * eq = get_equation_struct(0, l_opr, opt, r_optr);
+    solution_t * eq = get_equation_struct(0, l_opr, opt, r_optr);
 
     if (1 == expected_succ)
     {
         EXPECT_EQ(eq->result, EQ_SOLVED) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int << "\n" << eq->error_msg;
         if (EQ_SOLVED == eq->result)
         {
-            EXPECT_EQ(eq->evaluation, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
+            EXPECT_EQ(eq->solution, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
         }
     }
     else
