@@ -18,3 +18,16 @@ target_link_libraries(
 )
 GTest_add_target(gtest_parser)
 
+#
+# Test the thread_pool library
+#
+add_executable(
+        gtest_thread_pool
+        gtest_thread_pool.cpp
+)
+target_link_libraries(
+        gtest_thread_pool
+        PUBLIC
+        thread_pool
+)
+GTest_add_target(gtest_thread_pool)
