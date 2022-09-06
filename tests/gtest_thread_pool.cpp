@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
 #include <thread_pool.h>
 
-TEST(test1, test1)
+TEST(TestAllocDestroy, TestAllocDestroy)
 {
-    init();
+    thpool_t * thpool = thpool_init(4);
+    thpool_destroy(thpool);
 }

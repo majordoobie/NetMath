@@ -10,6 +10,7 @@ extern "C" {
 #else
 #define DEBUG_PRINT 1
 #endif
+#include <stdio.h>
 
 /*
  * Enable printing debug messages when in debug mode
