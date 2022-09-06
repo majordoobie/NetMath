@@ -34,6 +34,9 @@ struct thpool_t
 {
     uint8_t thread_count;
     worker_t ** workers;
+    pthread_mutex_t queue_lock;
+    pthread_mutex_t task_avail_lock;
+	pthread_cond_t task_avail_cond;
 };
 
 static void * do_work(worker_t * worker);
