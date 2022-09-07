@@ -16,7 +16,7 @@ typedef enum
 
 typedef struct thpool_t thpool_t;
 thpool_t * thpool_init(uint8_t thread_count);
-thpool_status thpool_queue_job(thpool_t * thpool, void (* job_callback)(void *), void * job_args);
+thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *), void * job_arg);
 void thpool_destroy(thpool_t * thpool);
 
 
