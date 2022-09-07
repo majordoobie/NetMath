@@ -52,6 +52,8 @@ struct thpool_t
 {
     uint8_t thread_count;
     volatile sig_atomic_t workers_alive;
+    volatile sig_atomic_t workers_working;
+
     worker_t ** workers;
     work_queue_t * work_queue;
     pthread_mutex_t run_mutex;
@@ -85,6 +87,7 @@ thpool_t * thpool_init(uint8_t thread_count)
     }
     thpool->thread_count = thread_count;
     thpool->workers_alive = 0;
+    thpool->workers_working = 0;
 
     // Create array of worker objects
     thpool->workers = (worker_t **)calloc(thread_count, sizeof(worker_t *));
@@ -125,13 +128,16 @@ thpool_t * thpool_init(uint8_t thread_count)
     pthread_cond_init(&thpool->run_cond, NULL);
     pthread_mutex_init(&thpool->work_queue->queue_access_mutex, NULL);
 
+    debug_print("Waiting on init. Total alive: %d\n", thpool->workers_alive);
+    sleep(1);
+
     while (thpool->workers_alive != thread_count)
     {
+        printf("Are you in here?\n");
         debug_print("%s", "Waiting for threads to init\n");
         sleep(1);
     }
 
-    fflush(stderr);
     return thpool;
 }
 
@@ -143,7 +149,7 @@ void thpool_destroy(thpool_t * thpool)
     // update all the threads until they are done with their tasks
     while (0 != thpool->workers_alive)
     {
-        debug_print("%s%d%s", "Workers alive: ", thpool->workers_alive, "\n");
+        debug_print("Workers alive: %d\n", thpool->workers_alive);
         pthread_cond_broadcast(&thpool->run_cond);
         sleep(1);
     }
@@ -200,26 +206,48 @@ thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *
 static void * do_work(worker_t * worker)
 {
     thpool_t * thpool = worker->thpool;
+    thpool->workers_alive = thpool->workers_alive + 1;
 
     while (1 == thpool_active)
     {
         pthread_mutex_lock(&thpool->run_mutex);
-        thpool->workers_alive = thpool->workers_alive + 1;
-        while ((0 == thpool_job_available) && (1 == thpool_active))
+        while (1 != thpool_job_available)
         {
-            debug_print("%s%d%s", "Thread ", worker->id, " is waiting for job\n");
+            debug_print("[!] Thread %d waiting for a job.\n[threads: %d || working: %d]\n\n", worker->id, thpool->workers_alive, thpool->workers_working);
             pthread_cond_wait(&thpool->run_cond, &thpool->run_mutex);
+
+            debug_print("[!] %d Got woken up checking var\n", worker->id);
+            if (0 == thpool_active)
+            {
+                break;
+            }
         }
-        debug_print("%s%d%s", "Thread ", worker->id, " Caught wakeup signal\n");
-        sleep(1);
+
+        //TODO: MOve this to queue function
         thpool_job_available = 0;
+
+        // As soon as the thread wakes up, unlock the run lock
+        // We do not need it locked for operation
+        pthread_mutex_unlock(&thpool->run_mutex);
+        debug_print("[!] Thread %d caught work!\n[threads: %d || working: %d]\n\n", worker->id, thpool->workers_alive, thpool->workers_working);
+
         // Add a second check. This is used when the destroy function is
         // called. All threads are broadcast to wake them up to exit
         if (0 == thpool_active)
         {
-            debug_print("%s%d%s", "Thread ", worker->id, " woke up to process thread\n");
+            debug_print("[!] Thread %d sees inavtive pool exiting!\n[threads: %d || working: %d]\n\n", worker->id, thpool->workers_alive, thpool->workers_working);
+            break;
         }
-        pthread_mutex_unlock(&thpool->run_mutex);
+        // Before beginning work, increment the working thread count
+        thpool->workers_working = thpool->workers_working + 1;
+        debug_print("Thread %d got work...\n", worker->id);
+
+        sleep(1);
+
+        debug_print("Thread %d finished with work...\n", worker->id);
+
+        // Decrement threads working then unlock the mutex
+        thpool->workers_working = thpool->workers_working - 1;
     }
 
     debug_print("%s%d%s", "Thread ", worker->id, " is exiting\n");
