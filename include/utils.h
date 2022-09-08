@@ -15,9 +15,12 @@ extern "C" {
 /*
  * Enable printing debug messages when in debug mode
  */
-#define debug_print(fmt, ...) \
+#define debug_print_err(fmt, ...) \
         do { if (DEBUG_PRINT) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
                                 __LINE__, __func__, __VA_ARGS__); } while (0)
+
+#define debug_print(fmt, ...) \
+            do { if (DEBUG_PRINT) fprintf(stderr, fmt, __VA_ARGS__); } while (0)
 
 typedef enum util_verify_t
 {

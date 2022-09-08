@@ -4,6 +4,8 @@
 #include <stdatomic.h>
 
 
+// Worker objects is a struct containing a pointer to the thpool and the
+// thread itself
 typedef struct worker_t
 {
     int id;
@@ -11,6 +13,8 @@ typedef struct worker_t
     thpool_t * thpool;
 } worker_t;
 
+// A job is a queued up object containing the function that a woken thread
+// should perform.
 typedef struct job_t job_t;
 struct job_t
 {
@@ -19,6 +23,9 @@ struct job_t
 	void * job_arg;
 };
 
+// The work queue contains a list of first come, first served jobs that are
+// consumed by the thread pool. When the queue is empty, the threads will
+// block until a new job is enqueued.
 typedef struct work_queue_t
 {
     job_t * job_head;
@@ -27,6 +34,8 @@ typedef struct work_queue_t
     mtx_t queue_access_mutex;
 } work_queue_t;
 
+// The main structure contains pointers to the mutexes and atomic variables
+// that maintain synchronization between all the threads
 struct thpool_t
 {
     uint8_t thread_count;
@@ -49,6 +58,19 @@ static volatile atomic_bool thpool_job_available = 0;
 
 static void * do_work(worker_t * worker);
 
+/*!
+ * @brief Initialize the threadpool object and spawns the number of threads
+ * specified. The threads will begin to execute their main function and block
+ * until a new task is enqueued into the job queue. As soon as a job is
+ * enqueued, a single thread will be woken up to consume the job. When the job
+ * is complete, the thread will return back to blocking with the others until
+ * another job is enqueued.
+ *
+ * Note that this function will block until all threads have been initialized
+ *
+ * @param thread_count Number of threads to spawn for the threadpool
+ * @return Pointer to the threadpool object or NULL
+ */
 thpool_t * thpool_init(uint8_t thread_count)
 {
     // Return NULL if 0 was passed in
@@ -58,18 +80,18 @@ thpool_t * thpool_init(uint8_t thread_count)
         return NULL;
     }
 
-    // Create the thpool object
-    thpool_t * thpool = (thpool_t *)malloc(sizeof(thpool_t));
+    /*
+     * Thread pool init
+     */
+    thpool_t * thpool = (thpool_t *)calloc(1, sizeof(thpool_t));
     if (UV_INVALID_ALLOC == verify_alloc(thpool))
     {
         return NULL;
     }
-    thpool->thread_count = thread_count;
-    thpool->workers_alive = 0;
-    thpool->workers_working = 0;
-    atomic_flag_test_and_set(&thpool_active);
 
-    // Create array of worker objects
+    /*
+     * Workers init
+     */
     thpool->workers = (worker_t **)calloc(thread_count, sizeof(worker_t *));
     if (UV_INVALID_ALLOC == verify_alloc(thpool->workers))
     {
@@ -77,7 +99,10 @@ thpool_t * thpool_init(uint8_t thread_count)
         return NULL;
     }
 
-    // Create the individual thread objects from the pthread api
+    /*
+     * Threads init
+     */
+    int result = 0;
     for (uint8_t i = 0; i < thread_count; i++)
     {
         thpool->workers[i] = (worker_t *)malloc(sizeof(worker_t));
@@ -91,23 +116,76 @@ thpool_t * thpool_init(uint8_t thread_count)
 
         worker->thpool = thpool;
         worker->id = i;
-        thrd_create(&(worker->thread), (thrd_start_t)do_work, worker);
-	    thrd_detach(worker->thread);
+        result = thrd_create(&(worker->thread), (thrd_start_t)do_work, worker);
+        if (thrd_success != result)
+        {
+            debug_print_err("%s", "Unable to create a thread for the thread pool\n");
+            free(thpool->workers);
+            free(thpool);
+            return NULL;
+
+        }
+	    result = thrd_detach(worker->thread);
+        if (thrd_success != result)
+        {
+            debug_print_err("%s", "Unable to detach thread\n");
+            free(thpool->workers);
+            free(thpool);
+            return NULL;
+        }
+
     }
 
-    // create the job queue structure
+    /*
+     * Init work queue
+     */
     work_queue_t * work_queue = (work_queue_t *)calloc(1, sizeof(work_queue_t));
     if (UV_INVALID_ALLOC == verify_alloc(work_queue))
     {
         thpool_destroy(thpool);
         return NULL;
     }
+
+
+    /*
+     * Init Mutexes and conditional variables
+     */
+    result = mtx_init(&thpool->run_mutex, mtx_plain);
+    if (thrd_success != result)
+    {
+        debug_print_err("%s", "Unable to init run_mutex\n");
+        thpool_destroy(thpool);
+        return NULL;
+    }
+
+    result = cnd_init(&thpool->run_cond);
+    if (thrd_success != result)
+    {
+        debug_print_err("%s", "Unable to init run_cond\n");
+        thpool_destroy(thpool);
+        return NULL;
+    }
+    result = mtx_init(&work_queue->queue_access_mutex, mtx_plain);
+    if (thrd_success != result)
+    {
+        debug_print_err("%s", "Unable to init queue_access\n");
+        thpool_destroy(thpool);
+        return NULL;
+    }
+
+    /*
+     * Assign vars to thpool object
+     */
     thpool->work_queue = work_queue;
+    thpool->thread_count = thread_count;
+    thpool->workers_alive = 0;
+    thpool->workers_working = 0;
+    atomic_flag_test_and_set(&thpool_active);
 
-    mtx_init(&thpool->run_mutex, mtx_plain);
-    cnd_init(&thpool->run_cond);
-    mtx_init(&thpool->work_queue->queue_access_mutex, mtx_plain);
 
+    /*
+     * Block until all threads have been initialized
+     */
     while (thread_count != atomic_load(&thpool->workers_alive))
     {
         debug_print("%s", "Waiting for threads to init\n");
