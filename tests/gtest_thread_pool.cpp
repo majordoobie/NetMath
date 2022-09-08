@@ -9,9 +9,8 @@ void stack(void)
 TEST(TestAllocDestroy, TestAllocDestroy)
 {
     thpool_t * thpool = thpool_init(4);
-    thpool_enqueue_job(thpool, reinterpret_cast<void (*)(void *)>(stack), NULL);
-    fflush(NULL);
-    printf("Sleeping for the sleep task to finish?\n");
+
+    thpool_enqueue_job(thpool, (void (*)(void *))stack, NULL);
     sleep(10);
     thpool_destroy(thpool);
 }
