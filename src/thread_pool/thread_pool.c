@@ -49,7 +49,7 @@ struct thpool_t
     cnd_t run_cond;
 };
 
-static void * do_work(worker_t * worker);
+static void get_to_work(worker_t * worker);
 static job_t * thpool_dequeue_job(thpool_t * thpool);
 
 /*!
@@ -166,7 +166,8 @@ thpool_t * thpool_init(uint8_t thread_count)
 
         worker->thpool = thpool;
         worker->id = i;
-        result = thrd_create(&(worker->thread), (thrd_start_t)do_work, worker);
+        result = thrd_create(&(worker->thread),
+                             (thrd_start_t)get_to_work, worker);
         if (thrd_success != result)
         {
             debug_print_err("%s", "Unable to create a thread for the thread pool\n");
@@ -210,15 +211,7 @@ void thpool_destroy(thpool_t * thpool)
     atomic_fetch_sub(&thpool->thpool_active, 1);
 
 
-    while (thpool->thread_count != atomic_load(&thpool->workers_alive))
-    {
-        debug_print("Waiting for threads to init [%d/%d]\n",
-                    atomic_load(&thpool->workers_alive), thpool->thread_count);
-        sleep(1);
-    }
-
     // update all the threads until they are done with their tasks
-
     while (0 != atomic_load(&thpool->workers_alive))
     {
         debug_print("\n[!] Broadcasting threads to exit...\n"
@@ -257,6 +250,15 @@ void thpool_destroy(thpool_t * thpool)
 
 
 
+/*!
+ * @brief Queue up a new task to the work queue. This will trigger a signal
+ * to the threadpool to check the queue and consume a new task for one of
+ * the threads.
+ * @param thpool Pointer to thpool object
+ * @param job_function Function callback to assign the thread
+ * @param job_arg Argument used to pass to the callback function
+ * @return Status indicating if a successful enqueue occured
+ */
 thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *), void * job_arg)
 {
     job_t * job = (job_t *)malloc(sizeof(job_t));
@@ -296,6 +298,11 @@ thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *
 }
 
 
+/*!
+ * @brief Remove a job from the job queue
+ * @param thpool Pointer to the thpool object
+ * @return Pointer to the next job object
+ */
 static job_t * thpool_dequeue_job(thpool_t * thpool)
 {
     mtx_lock(&thpool->work_queue->queue_access_mutex);
@@ -324,7 +331,13 @@ static job_t * thpool_dequeue_job(thpool_t * thpool)
     return work;
 }
 
-static void * do_work(worker_t * worker)
+/*!
+ * @brief Function where all threads in the thread pool live. All threads will
+ * block while the work queue is empty and the thread pool is active. When
+ * ever one of these conditions are no longer true, the thread will wake up.
+ * @param worker Pointer to the worker object
+ */
+static void get_to_work(worker_t * worker)
 {
     // Increment the number of threads alive. This is useful to indicate that
     // a thread has successfully init
@@ -386,6 +399,6 @@ static void * do_work(worker_t * worker)
                 atomic_load(&thpool->workers_alive),
                 atomic_load(&thpool->workers_working));
     atomic_fetch_sub(&thpool->workers_alive, 1);
-    return NULL;
+    return;
 }
 
