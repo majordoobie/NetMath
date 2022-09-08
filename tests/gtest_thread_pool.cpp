@@ -10,6 +10,14 @@ void work_func_one(void * arg)
     printf("Value is %ld\n", std::atomic_load(val));
 }
 
+void work_func_two(void * arg)
+{
+    printf("Got callback\n");
+    char * name = (char *)arg;
+    printf("[||]: %s\n", name);
+}
+
+
 class ThreadPoolTextFixture : public ::testing::Test
 {
  public:
@@ -34,6 +42,7 @@ TEST_F(ThreadPoolTextFixture, TestVarUpdating)
 {
     std::atomic_int64_t * val = (std::atomic_int64_t *)calloc(1, sizeof(std::atomic_int64_t));
     thpool_enqueue_job(this->thpool, work_func_one, val);
+    thpool_wait(this->thpool);
     EXPECT_EQ(std::atomic_load(val), 10);
     free(val);
 }

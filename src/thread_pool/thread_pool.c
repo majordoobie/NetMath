@@ -47,6 +47,9 @@ struct thpool_t
     work_queue_t * work_queue;
     mtx_t run_mutex;
     cnd_t run_cond;
+
+    mtx_t wait_mutex;
+    cnd_t wait_cond;
 };
 
 static void get_to_work(worker_t * worker);
@@ -122,7 +125,6 @@ thpool_t * thpool_init(uint8_t thread_count)
         thpool_destroy(thpool);
         return NULL;
     }
-
     result = cnd_init(&thpool->run_cond);
     if (thrd_success != result)
     {
@@ -134,6 +136,20 @@ thpool_t * thpool_init(uint8_t thread_count)
     if (thrd_success != result)
     {
         debug_print_err("%s", "Unable to init queue_access\n");
+        thpool_destroy(thpool);
+        return NULL;
+    }
+    result = mtx_init(&thpool->wait_mutex, mtx_plain);
+    if (thrd_success != result)
+    {
+        debug_print_err("%s", "Unable to init wait_mutex\n");
+        thpool_destroy(thpool);
+        return NULL;
+    }
+    result = cnd_init(&thpool->wait_cond);
+    if (thrd_success != result)
+    {
+        debug_print_err("%s", "Unable to init wait_cond\n");
         thpool_destroy(thpool);
         return NULL;
     }
@@ -198,6 +214,19 @@ thpool_t * thpool_init(uint8_t thread_count)
     }
 
     return thpool;
+}
+
+void thpool_wait(thpool_t * thpool)
+{
+    debug_print("\n->> [!] Attempting to wait %d and %ld\n", atomic_load(&thpool->workers_working),
+           atomic_load(&thpool->work_queue->job_count));
+
+    mtx_lock(&thpool->wait_mutex);
+    while ((0 != atomic_load(&thpool->workers_working)) || (0 != atomic_load(&thpool->work_queue->job_count)))
+    {
+        cnd_wait(&thpool->wait_cond, &thpool->wait_mutex);
+    }
+    mtx_unlock(&thpool->wait_mutex);
 }
 
 /*!
@@ -392,6 +421,10 @@ static void get_to_work(worker_t * worker)
 
         // Decrement threads working before going back to blocking
         atomic_fetch_sub(&thpool->workers_working, 1);
+        if (0 == atomic_load(&thpool->work_queue->job_count))
+        {
+            cnd_signal(&thpool->wait_cond);
+        }
     }
 
     debug_print("\n[!] Thread %d is exiting...\n[threads: %d || working: %d]\n\n",
