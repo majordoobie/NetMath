@@ -3,32 +3,11 @@
 #include <unistd.h>
 #include <stdatomic.h>
 
-/*
- * The thread pool is going to be a base structure containing a list of the
- * actual threads (or workers). and a queue of tasks. A task is any enqueued
- * tasks that need to be processed by a single thread.
- *
- * // Tasks
- * Tasks is going to be a queue of tasks that need to be processed asap.
- * Everytime a task is added we need to broadcast to the threads that a
- * job is available. We'll need a conditional mutex for this. So basically,
- * all the threads will be champing at the bit until a single thread is woken
- * up from a task being added. We'll probably need to set a mutex on the
- * queue so we do not read and write at the same time.
- *
- * // Thread creation
- * When the threads are created, they will all start an internal tasks which
- * will make them block until a job is queued. The thread will then wait
- * on a conditional variable that gets signaled when a job is added. When
- * the conditional variable is signaled a single thread will get woken up to
- * check the job queue again. The thread will then process the tasks until
- * it is complete.
- */
 
 typedef struct worker_t
 {
     int id;
-    pthread_t thread;
+    thrd_t thread;
     thpool_t * thpool;
 } worker_t;
 
@@ -45,19 +24,19 @@ typedef struct work_queue_t
     job_t * job_head;
     job_t * job_tail;
     uint32_t job_count;
-    pthread_mutex_t queue_access_mutex;
+    mtx_t queue_access_mutex;
 } work_queue_t;
 
 struct thpool_t
 {
     uint8_t thread_count;
-    atomic_int_fast8_t workers_alive;
-    atomic_int_fast8_t workers_working;
+    atomic_uint_fast8_t workers_alive;
+    atomic_uint_fast8_t workers_working;
 
     worker_t ** workers;
     work_queue_t * work_queue;
-    pthread_mutex_t run_mutex;
-    pthread_cond_t run_cond;
+    mtx_t run_mutex;
+    cnd_t run_cond;
 };
 
 // Flag is used to keep the pool while loops running. This value is
@@ -112,8 +91,8 @@ thpool_t * thpool_init(uint8_t thread_count)
 
         worker->thpool = thpool;
         worker->id = i;
-        pthread_create(&(worker->thread), NULL,(void * (*)(void *))do_work, worker);
-	    pthread_detach(worker->thread);
+        thrd_create(&(worker->thread), (thrd_start_t)do_work, worker);
+	    thrd_detach(worker->thread);
     }
 
     // create the job queue structure
@@ -125,9 +104,9 @@ thpool_t * thpool_init(uint8_t thread_count)
     }
     thpool->work_queue = work_queue;
 
-    pthread_mutex_init(&thpool->run_mutex, NULL);
-    pthread_cond_init(&thpool->run_cond, NULL);
-    pthread_mutex_init(&thpool->work_queue->queue_access_mutex, NULL);
+    mtx_init(&thpool->run_mutex, mtx_plain);
+    cnd_init(&thpool->run_cond);
+    mtx_init(&thpool->work_queue->queue_access_mutex, mtx_plain);
 
     while (thread_count != atomic_load(&thpool->workers_alive))
     {
@@ -148,14 +127,22 @@ void thpool_destroy(thpool_t * thpool)
     while (0 != atomic_load(&thpool->workers_alive))
     {
         debug_print("Workers alive: %d\n", atomic_load(&thpool->workers_alive));
-        pthread_cond_broadcast(&thpool->run_cond);
+        cnd_broadcast(&thpool->run_cond);
         sleep(1);
     }
 
+    // Free the threads
     for (uint8_t i = 0; i < thpool->thread_count; i++)
     {
         free(thpool->workers[i]);
     }
+
+    // Free the mutexes
+    mtx_destroy(&thpool->run_mutex);
+    cnd_destroy(&thpool->run_cond);
+    mtx_destroy(&thpool->work_queue->queue_access_mutex);
+
+    free(thpool->work_queue);
     free(thpool->workers);
     free(thpool);
 }
@@ -174,7 +161,7 @@ thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *
     job->job_function = job_function;
     work_queue_t * work_queue = thpool->work_queue;
 
-    pthread_mutex_lock(&work_queue->queue_access_mutex);
+    mtx_lock(&work_queue->queue_access_mutex);
 
     // If job queue is empty then assign the new job as the head and tail
     if (0 == work_queue->job_count)
@@ -193,9 +180,9 @@ thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *
     // Signal at least one thread that the run condition has changed
     // indicating that a new job has been added to the queue
     debug_print("%s", "Signaling of new job added to queue\n");
-    pthread_cond_signal(&thpool->run_cond);
+    cnd_signal(&thpool->run_cond);
 
-    pthread_mutex_unlock(&work_queue->queue_access_mutex);
+    mtx_unlock(&work_queue->queue_access_mutex);
     return THP_SUCCESS;
 }
 
@@ -208,13 +195,12 @@ static void * do_work(worker_t * worker)
 
     while (1 == atomic_load(&thpool_active))
     {
-        pthread_mutex_lock(&thpool->run_mutex);
+        mtx_lock(&thpool->run_mutex);
         while (1 != atomic_load(&thpool_job_available))
         {
-            debug_print("[!] Thread %d waiting for a job.\n[threads: %d || working: %d]\n\n", worker->id, thpool->workers_alive, thpool->workers_working);
-            pthread_cond_wait(&thpool->run_cond, &thpool->run_mutex);
-
-            debug_print("[!] %d Got woken up checking var\n", worker->id);
+            debug_print("[!] Thread %d waiting for a job.\n[threads: %d || working: %d]\n\n",
+                        worker->id, thpool->workers_alive, thpool->workers_working);
+            cnd_wait(&thpool->run_cond, &thpool->run_mutex);
             if (0 == atomic_load(&thpool_active))
             {
                 break;
@@ -226,29 +212,44 @@ static void * do_work(worker_t * worker)
 
         // As soon as the thread wakes up, unlock the run lock
         // We do not need it locked for operation
-        pthread_mutex_unlock(&thpool->run_mutex);
-        debug_print("[!] Thread %d caught work!\n[threads: %d || working: %d]\n\n", worker->id, thpool->workers_alive, thpool->workers_working);
+        mtx_unlock(&thpool->run_mutex);
+        debug_print("\n[!] Thread %d has woken up!\n[threads: %d || working: %d]\n\n",
+                    worker->id,
+                    atomic_load(&thpool->workers_alive),
+                    atomic_load(&thpool->workers_working));
 
         // Add a second check. This is used when the destroy function is
         // called. All threads are broadcast to wake them up to exit
         if (0 == atomic_load(&thpool_active))
         {
-            debug_print("[!] Thread %d sees inavtive pool exiting!\n[threads: %d || working: %d]\n\n", worker->id, thpool->workers_alive, thpool->workers_working);
             break;
         }
         // Before beginning work, increment the working thread count
         atomic_fetch_add(&thpool->workers_working, 1);
-        debug_print("Thread %d got work...\n", worker->id);
+        debug_print("\n[!] Thread %d starting work...\n[threads: %d || working: %d]\n\n",
+                    worker->id,
+                    atomic_load(&thpool->workers_alive),
+                    atomic_load(&thpool->workers_working));
 
-        sleep(1);
+        uint64_t val = 0;
+        while (val < 10000000)
+        {
+           val++;
+        }
 
-        debug_print("Thread %d finished with work...\n", worker->id);
+        debug_print("\n[!] Thread %d finished work...\n[threads: %d || working: %d]\n\n",
+                    worker->id,
+                    atomic_load(&thpool->workers_alive),
+                    atomic_load(&thpool->workers_working));
 
         // Decrement threads working then unlock the mutex
         atomic_fetch_sub(&thpool->workers_working, 1);
     }
 
-    debug_print("%s%d%s", "Thread ", worker->id, " is exiting\n");
+    debug_print("\n[!] Thread %d is exiting...\n[threads: %d || working: %d]\n\n",
+                worker->id,
+                atomic_load(&thpool->workers_alive),
+                atomic_load(&thpool->workers_working));
     atomic_fetch_sub(&thpool->workers_alive, 1);
     return NULL;
 }

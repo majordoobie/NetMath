@@ -6,7 +6,7 @@ extern "C" {
 #endif //END __cplusplus
 #include <utils.h>
 #include <stdint.h>
-#include <pthread.h>
+#include <threads.h>
 
 typedef enum
 {
