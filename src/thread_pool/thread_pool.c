@@ -30,7 +30,7 @@ typedef struct work_queue_t
 {
     job_t * job_head;
     job_t * job_tail;
-    uint32_t job_count;
+    atomic_uint_fast64_t job_count;
     mtx_t queue_access_mutex;
 } work_queue_t;
 
@@ -41,6 +41,7 @@ struct thpool_t
     uint8_t thread_count;
     atomic_uint_fast8_t workers_alive;
     atomic_uint_fast8_t workers_working;
+    atomic_uint_fast8_t thpool_active;
 
     worker_t ** workers;
     work_queue_t * work_queue;
@@ -48,15 +49,8 @@ struct thpool_t
     cnd_t run_cond;
 };
 
-// Flag is used to keep the pool while loops running. This value is
-// set to 0 when destroy is called
-static volatile atomic_bool thpool_active = 0;
-
-// Atomic flag is used to indicate when there is an available job to be
-// consumed by a thread
-static volatile atomic_bool thpool_job_available = 0;
-
 static void * do_work(worker_t * worker);
+static job_t * thpool_dequeue_job(thpool_t * thpool);
 
 /*!
  * @brief Initialize the threadpool object and spawns the number of threads
@@ -80,6 +74,8 @@ thpool_t * thpool_init(uint8_t thread_count)
         return NULL;
     }
 
+
+
     /*
      * Thread pool init
      */
@@ -88,6 +84,8 @@ thpool_t * thpool_init(uint8_t thread_count)
     {
         return NULL;
     }
+
+
 
     /*
      * Workers init
@@ -99,42 +97,7 @@ thpool_t * thpool_init(uint8_t thread_count)
         return NULL;
     }
 
-    /*
-     * Threads init
-     */
-    int result = 0;
-    for (uint8_t i = 0; i < thread_count; i++)
-    {
-        thpool->workers[i] = (worker_t *)malloc(sizeof(worker_t));
-        worker_t * worker = thpool->workers[i];
-        if (UV_INVALID_ALLOC == verify_alloc(worker))
-        {
-            free(thpool->workers);
-            free(thpool);
-            return NULL;
-        }
 
-        worker->thpool = thpool;
-        worker->id = i;
-        result = thrd_create(&(worker->thread), (thrd_start_t)do_work, worker);
-        if (thrd_success != result)
-        {
-            debug_print_err("%s", "Unable to create a thread for the thread pool\n");
-            free(thpool->workers);
-            free(thpool);
-            return NULL;
-
-        }
-	    result = thrd_detach(worker->thread);
-        if (thrd_success != result)
-        {
-            debug_print_err("%s", "Unable to detach thread\n");
-            free(thpool->workers);
-            free(thpool);
-            return NULL;
-        }
-
-    }
 
     /*
      * Init work queue
@@ -147,9 +110,11 @@ thpool_t * thpool_init(uint8_t thread_count)
     }
 
 
+
     /*
      * Init Mutexes and conditional variables
      */
+    int result = 0;
     result = mtx_init(&thpool->run_mutex, mtx_plain);
     if (thrd_success != result)
     {
@@ -173,14 +138,52 @@ thpool_t * thpool_init(uint8_t thread_count)
         return NULL;
     }
 
+
+
     /*
      * Assign vars to thpool object
      */
-    thpool->work_queue = work_queue;
-    thpool->thread_count = thread_count;
+    thpool->thpool_active = 1;
     thpool->workers_alive = 0;
     thpool->workers_working = 0;
-    atomic_flag_test_and_set(&thpool_active);
+    thpool->work_queue = work_queue;
+    thpool->thread_count = thread_count;
+
+
+
+    /*
+     * Threads init
+     */
+    for (uint8_t i = 0; i < thread_count; i++)
+    {
+        thpool->workers[i] = (worker_t *)malloc(sizeof(worker_t));
+        worker_t * worker = thpool->workers[i];
+        if (UV_INVALID_ALLOC == verify_alloc(worker))
+        {
+            thpool_destroy(thpool);
+            return NULL;
+        }
+
+        worker->thpool = thpool;
+        worker->id = i;
+        result = thrd_create(&(worker->thread), (thrd_start_t)do_work, worker);
+        if (thrd_success != result)
+        {
+            debug_print_err("%s", "Unable to create a thread for the thread pool\n");
+            thpool_destroy(thpool);
+            return NULL;
+
+        }
+	    result = thrd_detach(worker->thread);
+        if (thrd_success != result)
+        {
+            debug_print_err("%s", "Unable to detach thread\n");
+            thpool_destroy(thpool);
+            return NULL;
+        }
+
+    }
+
 
 
     /*
@@ -188,25 +191,51 @@ thpool_t * thpool_init(uint8_t thread_count)
      */
     while (thread_count != atomic_load(&thpool->workers_alive))
     {
-        debug_print("%s", "Waiting for threads to init\n");
+        debug_print("Waiting for threads to init [%d/%d]\n",
+                    atomic_load(&thpool->workers_alive), thread_count);
         sleep(1);
     }
 
     return thpool;
 }
 
+/*!
+ * @brief Free the thread pool
+ * @param thpool Pointer to the threadpool object
+ */
 void thpool_destroy(thpool_t * thpool)
 {
-    // set the ininite loop var to 0
-    atomic_flag_clear(&thpool_active);
+    // Set running bool to false and set the queue to have a value of 1
+    // instructing the threads to look for work.
+    atomic_fetch_sub(&thpool->thpool_active, 1);
+
+
+    while (thpool->thread_count != atomic_load(&thpool->workers_alive))
+    {
+        debug_print("Waiting for threads to init [%d/%d]\n",
+                    atomic_load(&thpool->workers_alive), thpool->thread_count);
+        sleep(1);
+    }
 
     // update all the threads until they are done with their tasks
 
     while (0 != atomic_load(&thpool->workers_alive))
     {
-        debug_print("Workers alive: %d\n", atomic_load(&thpool->workers_alive));
+        debug_print("\n[!] Broadcasting threads to exit...\n"
+                    "Workers still alive: %d\n",
+                    atomic_load(&thpool->workers_alive));
         cnd_broadcast(&thpool->run_cond);
         sleep(1);
+    }
+
+    // Free any jobs left in the queue that have not been consumed
+    job_t * job = thpool->work_queue->job_head;
+    job_t * temp;
+    while (NULL != job)
+    {
+        temp = job->next_job;
+        free(job);
+        job = temp;
     }
 
     // Free the threads
@@ -214,6 +243,7 @@ void thpool_destroy(thpool_t * thpool)
     {
         free(thpool->workers[i]);
     }
+
 
     // Free the mutexes
     mtx_destroy(&thpool->run_mutex);
@@ -237,12 +267,13 @@ thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *
 
     job->job_arg = job_arg;
     job->job_function = job_function;
+    job->next_job = NULL;
     work_queue_t * work_queue = thpool->work_queue;
 
     mtx_lock(&work_queue->queue_access_mutex);
 
     // If job queue is empty then assign the new job as the head and tail
-    if (0 == work_queue->job_count)
+    if (0 == atomic_load(&work_queue->job_count))
     {
         work_queue->job_head = job;
         work_queue->job_tail = job;
@@ -252,12 +283,12 @@ thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *
         work_queue->job_tail->next_job = job;
         work_queue->job_tail = job;
     }
-    work_queue->job_count++;
-    atomic_flag_test_and_set(&thpool_job_available);
+    atomic_fetch_add(&work_queue->job_count, 1);
 
     // Signal at least one thread that the run condition has changed
     // indicating that a new job has been added to the queue
-    debug_print("%s", "Signaling of new job added to queue\n");
+    debug_print("[!] New job enqueued. Total jobs in queue: %ld\n",
+                atomic_load(&work_queue->job_count));
     cnd_signal(&thpool->run_cond);
 
     mtx_unlock(&work_queue->queue_access_mutex);
@@ -265,54 +296,80 @@ thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *
 }
 
 
+static job_t * thpool_dequeue_job(thpool_t * thpool)
+{
+    mtx_lock(&thpool->work_queue->queue_access_mutex);
+    work_queue_t * work_queue = thpool->work_queue;
+
+    job_t * work = work_queue->job_head;
+
+    // If there is only one job queued, then prep the queue to point to "none"
+    if (1 == atomic_load(&work_queue->job_count))
+    {
+        work_queue->job_head = NULL;
+        work_queue->job_tail = NULL;
+        atomic_fetch_sub(&work_queue->job_count, 1);
+    }
+
+    // Else if the queue has more than on task left, then update head to
+    // point to the next item then signal the threads that work is available
+    else if (atomic_load(&work_queue->job_count) > 1)
+    {
+        work_queue->job_head = work->next_job;
+        atomic_fetch_sub(&work_queue->job_count, 1);
+        cnd_signal(&thpool->run_cond);
+    }
+
+    mtx_unlock(&work_queue->queue_access_mutex);
+    return work;
+}
 
 static void * do_work(worker_t * worker)
 {
+    // Increment the number of threads alive. This is useful to indicate that
+    // a thread has successfully init
+    atomic_fetch_add(&worker->thpool->workers_alive, 1);
     thpool_t * thpool = worker->thpool;
-    atomic_fetch_add(&thpool->workers_alive, 1);
 
-    while (1 == atomic_load(&thpool_active))
+    while (1 == atomic_load(&thpool->thpool_active))
     {
         mtx_lock(&thpool->run_mutex);
-        while (1 != atomic_load(&thpool_job_available))
+
+        // Block while the work queue is empty
+        while ((0 == atomic_load(&thpool->work_queue->job_count)) && (1 == atomic_load(&thpool->thpool_active)))
         {
             debug_print("[!] Thread %d waiting for a job.\n[threads: %d || working: %d]\n\n",
                         worker->id, thpool->workers_alive, thpool->workers_working);
             cnd_wait(&thpool->run_cond, &thpool->run_mutex);
-            if (0 == atomic_load(&thpool_active))
-            {
-                break;
-            }
+
+            // As soon as the thread wakes up, unlock the run lock
+            // We do not need it locked for operation
+            mtx_unlock(&thpool->run_mutex);
         }
 
-        //TODO: MOve this to queue function
-        atomic_flag_clear(&thpool_job_available);
-
-        // As soon as the thread wakes up, unlock the run lock
-        // We do not need it locked for operation
-        mtx_unlock(&thpool->run_mutex);
-        debug_print("\n[!] Thread %d has woken up!\n[threads: %d || working: %d]\n\n",
-                    worker->id,
-                    atomic_load(&thpool->workers_alive),
-                    atomic_load(&thpool->workers_working));
-
-        // Add a second check. This is used when the destroy function is
-        // called. All threads are broadcast to wake them up to exit
-        if (0 == atomic_load(&thpool_active))
+        // Second check to make sure that the woken up thread should
+        // execute work logic
+        if (0 == atomic_load(&thpool->thpool_active))
         {
             break;
         }
+
         // Before beginning work, increment the working thread count
         atomic_fetch_add(&thpool->workers_working, 1);
-        debug_print("\n[!] Thread %d starting work...\n[threads: %d || working: %d]\n\n",
+        debug_print("\n[!] Thread %d activated, starting work...\n"
+                    "[threads: %d || working: %d]\n\n",
                     worker->id,
                     atomic_load(&thpool->workers_alive),
                     atomic_load(&thpool->workers_working));
 
-        uint64_t val = 0;
-        while (val < 10000000)
+        /*
+         * Fetch a job and execute it
+         */
+        job_t * job = thpool_dequeue_job(thpool);
+        if (NULL != job)
         {
-           val++;
+            job->job_function(job->job_arg);
+            free(job);
         }
 
         debug_print("\n[!] Thread %d finished work...\n[threads: %d || working: %d]\n\n",
@@ -320,7 +377,7 @@ static void * do_work(worker_t * worker)
                     atomic_load(&thpool->workers_alive),
                     atomic_load(&thpool->workers_working));
 
-        // Decrement threads working then unlock the mutex
+        // Decrement threads working before going back to blocking
         atomic_fetch_sub(&thpool->workers_working, 1);
     }
 
