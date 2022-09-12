@@ -1,6 +1,8 @@
 #include <server.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <ctype.h>
 
 // Enable private function to be used publicly when in debug release mode
 #ifdef NDEBUG
@@ -23,6 +25,7 @@ typedef struct args_t
 
 DEBUG_STATIC args_t * parse_args(int argc, char ** argv);
 DEBUG_STATIC void free_args(args_t * args);
+DEBUG_STATIC uint32_t get_port(char * port);
 
 DEBUG_STATIC void free_args(args_t * args)
 {
@@ -47,5 +50,41 @@ DEBUG_STATIC args_t * parse_args(int argc, char ** argv)
         return args;
     }
 
+
+    opterr = 0;
+    int c = 0;
+
+    while ((c = getopt(argc, argv, "p:n:h")) != -1)
+        switch (c)
+        {
+            case 'p':
+                args->port = get_port(optarg);
+                break;
+            case 'n':
+//                args->threads = get_port(optarg);
+
+                break;
+            case '?':
+                if (optopt == 'c')
+                    fprintf(stderr,
+                            "Option -%c requires an argument.\n",
+                            optopt);
+                else if (isprint(optopt))
+                    fprintf(stderr, "Unknown option `-%c'.\n", optopt);
+                else
+                    fprintf(stderr,
+                            "Unknown option character `\\x%x'.\n",
+                            optopt);
+            default:
+                abort();
+        }
+
+
+
     return NULL;
+}
+
+DEBUG_STATIC uint32_t get_port(char * port)
+{
+    return 0;
 }

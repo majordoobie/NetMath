@@ -10,7 +10,32 @@ extern "C"
     } args_t;
     args_t * parse_args(int argc, char ** argv);
     void free_args(args_t * args);
+    uint32_t get_port(char * port);
 }
+
+class ServerTestValidPorts : public ::testing::TestWithParam<std::tuple<std::string, bool>>{};
+
+TEST_P(ServerTestValidPorts, TestValidPorts)
+{
+    auto [port_str, expect_failure] = GetParam();
+
+    uint32_t port = get_port((char *)port_str.c_str());
+    if (expect_failure)
+    {
+        EXPECT_EQ(port, 0);
+    }
+    else
+    {
+        EXPECT_TRUE(port > 0 && port <= 0xFFFF);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    PortTest,
+    ServerTestValidPorts,
+    ::testing::Values(
+        std::make_tuple("0", true)
+        ));
 
 class ServerCmdTester : public ::testing::TestWithParam<std::tuple<std::vector<std::string>, bool>>{};
 
