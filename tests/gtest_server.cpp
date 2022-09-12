@@ -20,14 +20,16 @@ TEST_P(ServerCmdTester, TestingServerArguments)
     auto [str_vector, expect_failure] = GetParam();
     int arg_count = (int)str_vector.size();
 
-    char ** arr = new char*[str_vector.size()];
+    // Turn the string vector into a array of char array
+    char ** argv = new char * [str_vector.size()];
     for(size_t i = 0; i < str_vector.size(); i++)
     {
-        arr[i] = new char[str_vector[i].size() + 1];
-        strcpy(arr[i], str_vector[i].c_str());
+        argv[i] = new char[str_vector[i].size() + 1];
+        strcpy(argv[i], str_vector[i].c_str());
     }
 
-    args_t * args = parse_args(arg_count, arr);
+    // Call the test function
+    args_t * args = parse_args(arg_count, argv);
     if (expect_failure)
     {
         EXPECT_EQ(args, nullptr);
@@ -38,28 +40,32 @@ TEST_P(ServerCmdTester, TestingServerArguments)
     }
 
 
+    // Free the array of char arrays
     for(size_t i = 0; i < str_vector.size(); i++)
     {
-        delete [] arr[i];
+        delete [] argv[i];
     }
-    delete [] arr;
-
+    delete [] argv;
     free_args(args);
 }
-
 
 INSTANTIATE_TEST_SUITE_P(
     AdditionTests,
     ServerCmdTester,
     ::testing::Values(
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "31337"}, false),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "1"}, false),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "65535"}, false),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "65536"}, true),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "0"}, true),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "4000", "-n", "8"}, false),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "4000", "-n", "256"}, true),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "4000", "-n", "0"}, true),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-n", "8"}, false),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-n", "256"}, true),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-n", "0"}, true),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-n", "0", "extra_arg"}, true),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "4000", "-n", "8", "extra_arg"}, true),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "4000", "-n", "8", "-n", "9000"}, true),
         std::make_tuple(std::vector<std::string>{__FILE__}, false)
     ));
-
-
-TEST(One, One)
-{
-    args_t * args = parse_args(1, (char **)"1");
-    EXPECT_NE(nullptr, args);
-    free_args(args);
-
-}
