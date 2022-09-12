@@ -20,6 +20,7 @@ add_subdirectory(src/utils)
 add_subdirectory(src/calculation)
 add_subdirectory(src/header_parser)
 add_subdirectory(src/thread_pool)
+add_subdirectory(src/server)
 
 # If debug is enabled make sure to include CTest at the root. This will allow
 # the ctest config to be placed at the root of the build directory

@@ -31,3 +31,17 @@ target_link_libraries(
         thread_pool
 )
 GTest_add_target(gtest_thread_pool)
+
+#
+# Test the server portion of the project
+#
+add_executable(
+        gtest_server
+        gtest_server.cpp
+)
+target_link_libraries(
+        gtest_server
+        PUBLIC
+        server
+)
+GTest_add_target(gtest_server)
