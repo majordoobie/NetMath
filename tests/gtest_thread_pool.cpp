@@ -5,16 +5,11 @@ void work_func_one(void * arg)
 {
     std::atomic_int64_t * val = (std::atomic_int64_t *)arg;
     std::atomic_fetch_add(val, 10);
-    sleep(1);
+    // Sleep for a fifth of a second to encourage other threads to start
+    // work; otherwise the same thread would get the jobs since it will go
+    // by too quickly
+    usleep(200000);
 }
-
-void work_func_two(void * arg)
-{
-    printf("Got callback\n");
-    char * name = (char *)arg;
-    printf("[||]: %s\n", name);
-}
-
 
 class ThreadPoolTextFixture : public ::testing::Test
 {
@@ -23,7 +18,7 @@ class ThreadPoolTextFixture : public ::testing::Test
  protected:
     void SetUp() override
     {
-        this->thpool = thpool_init(4);
+        this->thpool = thpool_init(8);
     }
     void TearDown() override
     {
@@ -51,7 +46,7 @@ TEST_F(ThreadPoolTextFixture, TestMultiUpdating)
     std::atomic_int64_t * val = (std::atomic_int64_t *)calloc(1, sizeof(std::atomic_int64_t));
 
     int i = 0;
-    while (i < 100)
+    while (i < 1000)
     {
         thpool_enqueue_job(this->thpool, work_func_one, val);
         i = i + 10;
