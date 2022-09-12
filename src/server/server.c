@@ -26,6 +26,7 @@ typedef struct args_t
 DEBUG_STATIC args_t * parse_args(int argc, char ** argv);
 DEBUG_STATIC void free_args(args_t * args);
 DEBUG_STATIC uint32_t get_port(char * port);
+DEBUG_STATIC uint8_t get_threads(char * thread);
 static uint8_t str_to_long(char * str_num, long int * int_val);
 
 DEBUG_STATIC void free_args(args_t * args)
@@ -60,29 +61,49 @@ DEBUG_STATIC args_t * parse_args(int argc, char ** argv)
         {
             case 'p':
                 args->port = get_port(optarg);
+                if (0 == args->port)
+                {
+                    free_args(args);
+                    return NULL;
+                }
                 break;
             case 'n':
-//                args->threads = get_port(optarg);
-
+                args->threads = get_threads(optarg);
+                if (0 == args->threads)
+                {
+                    free_args(args);
+                    return NULL;
+                }
                 break;
             case '?':
-                if (optopt == 'c')
+                if ((optopt == 'p') || (optopt == 'n'))
+                {
                     fprintf(stderr,
                             "Option -%c requires an argument.\n",
                             optopt);
+                }
+
                 else if (isprint(optopt))
+                {
                     fprintf(stderr, "Unknown option `-%c'.\n", optopt);
+                }
                 else
+                {
                     fprintf(stderr,
                             "Unknown option character `\\x%x'.\n",
                             optopt);
-            default:
-                abort();
+                }
+                free_args(args);
+                return NULL;
         }
 
-
-
-    return NULL;
+    // If there is anything else to process, error out
+    if (optind != argc)
+    {
+        free_args(args);
+        return NULL;
+    }
+    return args;
 }
 
 DEBUG_STATIC uint32_t get_port(char * port)
@@ -97,12 +118,32 @@ DEBUG_STATIC uint32_t get_port(char * port)
     }
 
     // Return error if the value converted is larger than a port value
-    if (converted_port > MAX_PORT)
+    if ((converted_port > MAX_PORT) || (converted_port < MIN_PORT))
     {
         return 0;
     }
 
     return (uint32_t)converted_port;
+}
+
+DEBUG_STATIC uint8_t get_threads(char * thread)
+{
+    long int converted_port = 0;
+    int result = str_to_long(thread, &converted_port);
+
+    // If 0 is returned, return 0 indicating an error
+    if (0 == result)
+    {
+        return 0;
+    }
+
+    // Return error if the value converted is larger than a port value
+    if ((converted_port > MAX_THREADS) || (converted_port < MIN_THREADS))
+    {
+        return 0;
+    }
+
+    return (uint8_t)converted_port;
 }
 
 static uint8_t str_to_long(char * str_num, long int * int_val)
