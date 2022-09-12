@@ -3,15 +3,11 @@
 
 extern "C"
 {
-    typedef struct args_t
-    {
-        uint32_t port;
-        uint8_t threads;
-    } args_t;
     args_t * parse_args(int argc, char ** argv);
     void free_args(args_t * args);
     uint32_t get_port(char * port);
     uint8_t get_threads(char * thread);
+    void start_server(uint8_t thread_count, uint32_t port_num);
 }
 
 class ServerTestValidPorts : public ::testing::TestWithParam<std::tuple<std::string, bool>>{};
