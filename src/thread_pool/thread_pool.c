@@ -216,13 +216,22 @@ thpool_t * thpool_init(uint8_t thread_count)
     return thpool;
 }
 
+/*!
+ * @brief Function will block until all the jobs in the job queue have finished
+ * and all the workers have finished working. The thread pool will wake the
+ * blocked function whenever a thread finishes work and the job queue has no
+ * jobs.
+ * @param thpool Pointer to the threadpool object
+ */
 void thpool_wait(thpool_t * thpool)
 {
 
     mtx_lock(&thpool->wait_mutex);
     while ((0 != atomic_load(&thpool->workers_working)) || (0 != atomic_load(&thpool->work_queue->job_count)))
     {
-        debug_print("\n->> [!] Attempting to wait %d and %ld\n", atomic_load(&thpool->workers_working),
+        debug_print("\n[!] Waiting for threadpool to finish "
+                    "[Workers working: %d] || [Jobs in queue: %ld]\n",
+                    atomic_load(&thpool->workers_working),
                     atomic_load(&thpool->work_queue->job_count));
 
         cnd_wait(&thpool->wait_cond, &thpool->wait_mutex);
