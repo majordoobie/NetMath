@@ -52,7 +52,7 @@ struct thpool_t
     cnd_t wait_cond;
 };
 
-static void get_to_work(worker_t * worker);
+static void thread_pool(worker_t * worker);
 static job_t * thpool_dequeue_job(thpool_t * thpool);
 
 /*!
@@ -183,7 +183,7 @@ thpool_t * thpool_init(uint8_t thread_count)
         worker->thpool = thpool;
         worker->id = i;
         result = thrd_create(&(worker->thread),
-                             (thrd_start_t)get_to_work, worker);
+                             (thrd_start_t)thread_pool, worker);
         if (thrd_success != result)
         {
             debug_print_err("%s", "Unable to create a thread for the thread pool\n");
@@ -218,14 +218,17 @@ thpool_t * thpool_init(uint8_t thread_count)
 
 void thpool_wait(thpool_t * thpool)
 {
-    debug_print("\n->> [!] Attempting to wait %d and %ld\n", atomic_load(&thpool->workers_working),
-           atomic_load(&thpool->work_queue->job_count));
 
     mtx_lock(&thpool->wait_mutex);
     while ((0 != atomic_load(&thpool->workers_working)) || (0 != atomic_load(&thpool->work_queue->job_count)))
     {
+        debug_print("\n->> [!] Attempting to wait %d and %ld\n", atomic_load(&thpool->workers_working),
+                    atomic_load(&thpool->work_queue->job_count));
+
         cnd_wait(&thpool->wait_cond, &thpool->wait_mutex);
     }
+    debug_print("%s\n", "Finished waiting...");
+
     mtx_unlock(&thpool->wait_mutex);
 }
 
@@ -320,9 +323,10 @@ thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *
     // indicating that a new job has been added to the queue
     debug_print("[!] New job enqueued. Total jobs in queue: %ld\n",
                 atomic_load(&work_queue->job_count));
-    cnd_signal(&thpool->run_cond);
+
 
     mtx_unlock(&work_queue->queue_access_mutex);
+    cnd_signal(&thpool->run_cond);
     return THP_SUCCESS;
 }
 
@@ -348,15 +352,17 @@ static job_t * thpool_dequeue_job(thpool_t * thpool)
     }
 
     // Else if the queue has more than on task left, then update head to
-    // point to the next item then signal the threads that work is available
+    // point to the next item
     else if (atomic_load(&work_queue->job_count) > 1)
     {
         work_queue->job_head = work->next_job;
         atomic_fetch_sub(&work_queue->job_count, 1);
-        cnd_signal(&thpool->run_cond);
     }
 
     mtx_unlock(&work_queue->queue_access_mutex);
+
+    // Signal the threadpool that there are tasks in the queue
+    cnd_signal(&thpool->run_cond);
     return work;
 }
 
@@ -366,7 +372,7 @@ static job_t * thpool_dequeue_job(thpool_t * thpool)
  * ever one of these conditions are no longer true, the thread will wake up.
  * @param worker Pointer to the worker object
  */
-static void get_to_work(worker_t * worker)
+static void thread_pool(worker_t * worker)
 {
     // Increment the number of threads alive. This is useful to indicate that
     // a thread has successfully init
@@ -383,16 +389,22 @@ static void get_to_work(worker_t * worker)
             debug_print("[!] Thread %d waiting for a job.\n[threads: %d || working: %d]\n\n",
                         worker->id, thpool->workers_alive, thpool->workers_working);
             cnd_wait(&thpool->run_cond, &thpool->run_mutex);
-
-            // As soon as the thread wakes up, unlock the run lock
-            // We do not need it locked for operation
-            mtx_unlock(&thpool->run_mutex);
         }
+
+        // As soon as the thread wakes up, unlock the run lock
+        // We do not need it locked for operation
+        mtx_unlock(&thpool->run_mutex);
 
         // Second check to make sure that the woken up thread should
         // execute work logic
         if (0 == atomic_load(&thpool->thpool_active))
         {
+            // If there is no more work, signal the wait_cond about no work
+            // being available incase it is waiting for the queue to be empty
+            if (0 == atomic_load(&thpool->work_queue->job_count))
+            {
+                cnd_signal(&thpool->wait_cond);
+            }
             break;
         }
 
@@ -414,13 +426,16 @@ static void get_to_work(worker_t * worker)
             free(job);
         }
 
+        // Decrement threads working before going back to blocking
+        atomic_fetch_sub(&thpool->workers_working, 1);
+
         debug_print("\n[!] Thread %d finished work...\n[threads: %d || working: %d]\n\n",
                     worker->id,
                     atomic_load(&thpool->workers_alive),
                     atomic_load(&thpool->workers_working));
 
-        // Decrement threads working before going back to blocking
-        atomic_fetch_sub(&thpool->workers_working, 1);
+        // If there is no more work, signal the wait_cond about no work
+        // being available incase it is waiting for the queue to be empty
         if (0 == atomic_load(&thpool->work_queue->job_count))
         {
             cnd_signal(&thpool->wait_cond);

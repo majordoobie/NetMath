@@ -3,11 +3,9 @@
 
 void work_func_one(void * arg)
 {
-    printf("Got in here\n");
     std::atomic_int64_t * val = (std::atomic_int64_t *)arg;
-    printf("Value is %ld\n", std::atomic_load(val));
     std::atomic_fetch_add(val, 10);
-    printf("Value is %ld\n", std::atomic_load(val));
+    sleep(1);
 }
 
 void work_func_two(void * arg)
@@ -42,8 +40,25 @@ TEST_F(ThreadPoolTextFixture, TestVarUpdating)
 {
     std::atomic_int64_t * val = (std::atomic_int64_t *)calloc(1, sizeof(std::atomic_int64_t));
     thpool_enqueue_job(this->thpool, work_func_one, val);
+    thpool_enqueue_job(this->thpool, work_func_one, val);
     thpool_wait(this->thpool);
-    EXPECT_EQ(std::atomic_load(val), 10);
+    EXPECT_EQ(std::atomic_load(val), 20);
+    free(val);
+}
+
+TEST_F(ThreadPoolTextFixture, TestMultiUpdating)
+{
+    std::atomic_int64_t * val = (std::atomic_int64_t *)calloc(1, sizeof(std::atomic_int64_t));
+
+    int i = 0;
+    while (i < 100)
+    {
+        thpool_enqueue_job(this->thpool, work_func_one, val);
+        i = i + 10;
+    }
+
+    thpool_wait(this->thpool);
+    EXPECT_EQ(std::atomic_load(val), i);
     free(val);
 }
 
