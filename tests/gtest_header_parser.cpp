@@ -69,7 +69,6 @@ TEST(Simple, Simple)
     }
 
 
-
     free_equation(eqs);
     close(file);
 }

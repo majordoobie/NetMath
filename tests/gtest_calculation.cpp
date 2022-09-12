@@ -49,10 +49,11 @@ TEST_P(SignedCalcTestFixture, TestingCalculations)
 
     if (1 == expected_succ)
     {
-        EXPECT_EQ(eq->result, EQ_SOLVED) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int << "\n" << eq->error_msg;
+        EXPECT_EQ(eq->result, EQ_SOLVED) << l_opr << " (" << hexchar{(char)opt} << ") " << r_optr << " = " << expected_int << "\n" << eq->error_msg;
         if (EQ_SOLVED == eq->result)
         {
-            EXPECT_EQ(eq->solution, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
+            EXPECT_EQ(eq->solution, expected_int) << l_opr << " (" << hexchar{
+                            (char)opt} << ") " << r_optr << " = " << expected_int;
         }
     }
     else
@@ -70,10 +71,11 @@ TEST_P(UnSignedCalcTestFixture, TestingCalculations)
 
     if (1 == expected_succ)
     {
-        EXPECT_EQ(eq->result, EQ_SOLVED) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int << "\n" << eq->error_msg;
+        EXPECT_EQ(eq->result, EQ_SOLVED) << l_opr << " (" << hexchar{(char)opt} << ") " << r_optr << " = " << expected_int << "\n" << eq->error_msg;
         if (EQ_SOLVED == eq->result)
         {
-            EXPECT_EQ(eq->solution, expected_int) << l_opr << " (" << hexchar{opt} << ") " << r_optr << " = " << expected_int;
+            EXPECT_EQ(eq->solution, expected_int) << l_opr << " (" << hexchar{
+                            (char)opt} << ") " << r_optr << " = " << expected_int;
         }
     }
     else

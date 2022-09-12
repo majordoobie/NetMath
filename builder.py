@@ -25,7 +25,7 @@ def main() -> None:
 
     elif args.type:
         _build(args)
-        for binary in test_binaries:
+        for binary in _get_test_names(args.build):
             if binary.name == args.type:
                 subprocess.run(binary.as_posix())
                 exit()
