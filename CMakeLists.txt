@@ -6,7 +6,6 @@ project(JG_NetCalc C CXX)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 
-set(CMAKE_VERBOSE_MAKEFILE yes)
 # Add the cmake modules directory to call functions in them
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 

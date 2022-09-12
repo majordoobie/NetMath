@@ -9,7 +9,6 @@
 #endif
 
 DEBUG_STATIC void free_args(args_t * args);
-DEBUG_STATIC void start_server(uint8_t thread_count, uint32_t port_num);
 
 
 int main(int argc, char ** argv)
@@ -23,16 +22,4 @@ int main(int argc, char ** argv)
     free_args(args);
 }
 
-DEBUG_STATIC void start_server(uint8_t thread_count, uint32_t port_num)
-{
-    thpool_t * thpool = thpool_init(thread_count);
-    if (NULL == thpool)
-    {
-        return;
-    }
-
-
-
-    thpool_destroy(thpool);
-}
 

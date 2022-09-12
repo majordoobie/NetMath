@@ -42,6 +42,6 @@ add_executable(
 target_link_libraries(
         gtest_server
         PUBLIC
-        server
+        server_backend
 )
 GTest_add_target(gtest_server)

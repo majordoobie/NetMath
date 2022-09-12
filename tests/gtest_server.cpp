@@ -1,13 +1,18 @@
 #include <gtest/gtest.h>
 #include <server.h>
 
+TEST(Test1, Test2)
+{
+    start_server(2, 2);
+    EXPECT_EQ(1, 1);
+}
+
 extern "C"
 {
     args_t * parse_args(int argc, char ** argv);
     void free_args(args_t * args);
     uint32_t get_port(char * port);
     uint8_t get_threads(char * thread);
-    void start_server(uint8_t thread_count, uint32_t port_num);
 }
 
 class ServerTestValidPorts : public ::testing::TestWithParam<std::tuple<std::string, bool>>{};
@@ -33,7 +38,6 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         std::make_tuple("1", false),
         std::make_tuple("60000", false),
-        std::make_tuple("65535", false),
         std::make_tuple("65535", false),
         std::make_tuple("65536", true),
         std::make_tuple("0", true)
