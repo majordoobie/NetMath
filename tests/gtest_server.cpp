@@ -116,6 +116,7 @@ INSTANTIATE_TEST_SUITE_P(
     ServerCmdTester,
     ::testing::Values(
         std::make_tuple(std::vector<std::string>{__FILE__, "-p", "31337"}, false),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-h"}, true),
         std::make_tuple(std::vector<std::string>{__FILE__, "-p", "1"}, false),
         std::make_tuple(std::vector<std::string>{__FILE__, "-p", "65535"}, false),
         std::make_tuple(std::vector<std::string>{__FILE__, "-p", "65536"}, true),

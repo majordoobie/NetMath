@@ -29,11 +29,21 @@ DEBUG_STATIC uint32_t get_port(char * port);
 DEBUG_STATIC uint8_t get_threads(char * thread);
 static uint8_t str_to_long(char * str_num, long int * int_val);
 
+/*!
+ * @brief Free the arg_t object
+ * @param args
+ */
 DEBUG_STATIC void free_args(args_t * args)
 {
     free(args);
 }
 
+/*!
+ * @brief Parse command line arguments to modify how th server is ran
+ * @param argc Number of arguments  in the argv
+ * @param argv Array of char arrays
+ * @return Pointer to arg_t object if the args were valid otherwise NULL
+ */
 DEBUG_STATIC args_t * parse_args(int argc, char ** argv)
 {
     args_t * args = (args_t *)malloc(sizeof(args_t));
@@ -75,6 +85,14 @@ DEBUG_STATIC args_t * parse_args(int argc, char ** argv)
                     return NULL;
                 }
                 break;
+            case 'h':
+                printf("Server listens on 0.0.0.0:31337 by default with "
+                       "the option of modifying the port to listen on and the "
+                       "number of threads to utilize.\n\n"
+                       "-p  Port to listen to (default: 31337)\n"
+                       "-n  Number of threads to use (default: 4)\n");
+                free_args(args);
+                return NULL;
             case '?':
                 if ((optopt == 'p') || (optopt == 'n'))
                 {
@@ -106,6 +124,11 @@ DEBUG_STATIC args_t * parse_args(int argc, char ** argv)
     return args;
 }
 
+/*!
+ * @brief Conver the port string into a valid port int
+ * @param port Pointer to the port string
+ * @return uint32_t conversion of port; 0 if failure
+ */
 DEBUG_STATIC uint32_t get_port(char * port)
 {
     long int converted_port = 0;
@@ -126,6 +149,11 @@ DEBUG_STATIC uint32_t get_port(char * port)
     return (uint32_t)converted_port;
 }
 
+/*!
+ * @brief Covert the string to an int
+ * @param thread Pointer to the char to convert
+ * @return uint32_t conversion of port; 0 if failure
+ */
 DEBUG_STATIC uint8_t get_threads(char * thread)
 {
     long int converted_port = 0;
@@ -146,6 +174,14 @@ DEBUG_STATIC uint8_t get_threads(char * thread)
     return (uint8_t)converted_port;
 }
 
+/*!
+ * @brief Function is mostly a replica of the strtol help menu to convert a
+ * string into a long int
+ *
+ * @param str_num String to convert
+ * @param int_val The result value
+ * @return 0 if failure or 1 if successful
+ */
 static uint8_t str_to_long(char * str_num, long int * int_val)
 {
     //To distinguish success/failure after call
