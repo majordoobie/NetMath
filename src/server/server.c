@@ -1,8 +1,8 @@
 #include <server.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <errno.h>
 
 // Enable private function to be used publicly when in debug release mode
 #ifdef NDEBUG
@@ -26,6 +26,7 @@ typedef struct args_t
 DEBUG_STATIC args_t * parse_args(int argc, char ** argv);
 DEBUG_STATIC void free_args(args_t * args);
 DEBUG_STATIC uint32_t get_port(char * port);
+static uint8_t str_to_long(char * str_num, long int * int_val);
 
 DEBUG_STATIC void free_args(args_t * args)
 {
@@ -86,5 +87,48 @@ DEBUG_STATIC args_t * parse_args(int argc, char ** argv)
 
 DEBUG_STATIC uint32_t get_port(char * port)
 {
-    return 0;
+    long int converted_port = 0;
+    int result = str_to_long(port, &converted_port);
+
+    // If 0 is returned, return 0 indicating an error
+    if (0 == result)
+    {
+        return 0;
+    }
+
+    // Return error if the value converted is larger than a port value
+    if (converted_port > MAX_PORT)
+    {
+        return 0;
+    }
+
+    return (uint32_t)converted_port;
+}
+
+static uint8_t str_to_long(char * str_num, long int * int_val)
+{
+    //To distinguish success/failure after call
+    errno = 0;
+    char * endptr = {0};
+    *int_val = strtol(str_num, &endptr, 10);
+
+    // Check for errors
+    if (0 != errno)
+    {
+        return 0;
+    }
+
+    // No digits were found in the string to convert
+    if (endptr == str_num)
+    {
+        return 0;
+    }
+
+    // If there are any extra characters, return 0
+    if (* endptr != '\0')
+    {
+        return 0;
+    }
+
+    return 1;
 }

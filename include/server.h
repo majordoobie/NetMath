@@ -6,7 +6,14 @@ extern "C" {
 #endif //END __cplusplus
 
 #include <utils.h>
+#include <stdint.h>
 
+typedef enum
+{
+    MAX_THREADS = UINT8_MAX,
+    MIN_PORT    = 1,
+    MAX_PORT    = 0xFFFF
+} server_defaults_t;
 
 #ifdef __cplusplus
 }

@@ -26,7 +26,7 @@ TEST_P(ServerTestValidPorts, TestValidPorts)
     }
     else
     {
-        EXPECT_TRUE(port > 0 && port <= 0xFFFF);
+        EXPECT_TRUE(port > 0 && port <= MAX_PORT);
     }
 }
 
@@ -34,6 +34,11 @@ INSTANTIATE_TEST_SUITE_P(
     PortTest,
     ServerTestValidPorts,
     ::testing::Values(
+        std::make_tuple("1", false),
+        std::make_tuple("60000", false),
+        std::make_tuple("65535", false),
+        std::make_tuple("65535", false),
+        std::make_tuple("65536", true),
         std::make_tuple("0", true)
         ));
 
