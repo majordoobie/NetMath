@@ -31,7 +31,6 @@ def main():
         wait(futures, return_when=ALL_COMPLETED)
 
 
-
 def _client_connection(args: argparse.Namespace, file_name: Path) -> None:
     # print("got first callback")
     data = None
@@ -52,16 +51,11 @@ def _client_connection(args: argparse.Namespace, file_name: Path) -> None:
         raise ValueError(f"Header size is too big for file {file_name.name}")
 
     print(f"[Client]\nHeader size: {NET_HEADER_SIZE}\nName Len: {file_name_len}\n"
-          f"Total Packets: {stream_size}\nFilename: {file_name}")
+          f"Total Packets: {stream_size}\nFilename: {file_name}\n")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as fd:
         fd.connect((args.host, args.port))
         fd.sendall(header + data)
-
-
-async def second_callback(args):
-    print("Got second callbcak")
-
 
 
 def _verify_dirs(args: argparse.Namespace) -> None:
