@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <header_parser.h>
 
 DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len);
 DEBUG_STATIC void serve_client(void * sock);
@@ -36,6 +37,25 @@ void start_server(uint8_t thread_count, uint32_t port_num)
 
     close(server_socket);
     thpool_destroy(thpool);
+}
+
+DEBUG_STATIC void serve_client(void * sock_void)
+{
+    int client_sock = *(int *)sock_void;
+
+    net_header_t * header = read_header(client_sock);
+    if (NULL == header)
+    {
+        debug_print_err("[SERVER THREAD] Invalid Read: %s\n", strerror(errno));
+        return;
+    }
+
+    printf("[SERVER THREAD]\nHeader size: %d\nName Len: %d\nTotal Packets: %lu\nFile Name: "
+           "%s\n", header->header_size, header->name_len, header->total_payload_size,
+           header->file_name);
+
+    close(client_sock);
+    free_header(header);
 }
 
 /*!
@@ -152,9 +172,5 @@ DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len)
     freeaddrinfo(network_record_root);
 
     return (network_record == NULL) ? -1 : sock_fd;
-}
-DEBUG_STATIC void serve_client(void * sock)
-{
-    printf("got here dude\n");
 }
 

@@ -44,9 +44,9 @@ typedef enum
 typedef enum
 {
     SO_EQU_ID       = 4,
-    SO_FLAGS        = 1,
-    SO_TYPE         = 1,
-    SO_SOLUTION     = 8
+//    SO_FLAGS        = 1,
+//    SO_TYPE         = 1,
+//    SO_SOLUTION     = 8
 } SOLVED_EQU_FORMAT_BYTES;
 
 
@@ -92,7 +92,9 @@ typedef struct net_header_t
 
 
 equations_t * parse_stream(int fd);
+net_header_t * read_header(int fd);
 void free_equation(equations_t * eq);
+void free_header(net_header_t * header);
 
 #ifdef __cplusplus
 }

@@ -3,8 +3,53 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <utils.h>
+#include <calculation.h>
+#include <arpa/inet.h>
 
-static int8_t read_stream(int fd, equations_t * eq, void * buff, size_t size);
+static int8_t read_stream(int fd, void * payload, void (free_func(void *)), void * buff, size_t size);
+
+net_header_t * read_header(int fd)
+{
+    net_header_t * header = (net_header_t *)calloc(1, sizeof(net_header_t));
+    if (UV_INVALID_ALLOC == verify_alloc((header)))
+    {
+        return NULL;
+    }
+
+    int res = read_stream(fd, header,(void (*)(void *))read_header, &header->header_size, NET_HEADER_SIZE);
+    if (-1 == res)
+    {
+        return NULL;
+    }
+    header->header_size = ntohl(header->header_size);
+
+    res = read_stream(fd, header,(void (*)(void *))read_header, &header->name_len, NET_FILE_NAME_LEN);
+    if (-1 == res)
+    {
+        return NULL;
+    }
+    header->name_len = ntohl(header->name_len);
+
+    res = read_stream(fd, header,(void (*)(void *))read_header, &header->total_payload_size, NET_TOTAL_PACKET_SIZE);
+    if (-1 == res)
+    {
+        return NULL;
+    }
+    // Swap the byte order of the 64 bit value
+    uint64_t val = header->total_payload_size;
+    val = ((val << 8) & 0xFF00FF00FF00FF00ULL ) | ((val >> 8) & 0x00FF00FF00FF00FFULL );
+    val = ((val << 16) & 0xFFFF0000FFFF0000ULL ) | ((val >> 16) & 0x0000FFFF0000FFFFULL );
+    val = (val << 32) | (val >> 32);
+    header->total_payload_size = val;
+
+    res = read_stream(fd, header,(void (*)(void *))read_header, &header->file_name, NET_FILE_NAME);
+    if (-1 == res)
+    {
+        return NULL;
+    }
+
+    return header;
+}
 
 /*!
  * @brief Sequentially read the stream of bytes and fill the structs associated
@@ -29,31 +74,32 @@ equations_t * parse_stream(int fd)
     }
     eqs->magic_id = magic_field;
 
-    int res = read_stream(fd, eqs, &eqs->file_id, HEAD_FILEID);
+    int res = read_stream(fd, eqs,
+                          (void (*)(void *))free_equation, &eqs->file_id, HEAD_FILEID);
     if (-1 == res)
     {
         return NULL;
     }
 
-    res = read_stream(fd, eqs, &eqs->number_of_eq, HEAD_NUM_OF_EQU);
+    res = read_stream(fd, eqs, (void (*)(void*))free_equation, &eqs->number_of_eq, HEAD_NUM_OF_EQU);
     if (-1 == res)
     {
         return NULL;
     }
 
-    res = read_stream(fd, eqs, &eqs->flags, HEAD_FLAGS);
+    res = read_stream(fd, eqs, (void (*)(void*))free_equation, &eqs->flags, HEAD_FLAGS);
     if (-1 == res)
     {
         return NULL;
     }
 
-    res = read_stream(fd, eqs, &eqs->offset, HEAD_EQU_OFFSET);
+    res = read_stream(fd, eqs, (void (*)(void*))free_equation, &eqs->offset, HEAD_EQU_OFFSET);
     if (-1 == res)
     {
         return NULL;
     }
 
-    res = read_stream(fd, eqs, &eqs->num_of_opts, HEAD_NUM_OF_OPT_HEADERS);
+    res = read_stream(fd, eqs, (void (*)(void*))free_equation, &eqs->num_of_opts, HEAD_NUM_OF_OPT_HEADERS);
     if (-1 == res)
     {
         return NULL;
@@ -83,31 +129,31 @@ equations_t * parse_stream(int fd)
 
 
         // Read from the stream all the sections for an unsolved equation
-        res = read_stream(fd, eqs, &un_eq->eq_id, UNSO_EQU_ID);
+        res = read_stream(fd, eqs, (void (*)(void*))free_equation, &un_eq->eq_id, UNSO_EQU_ID);
         if (-1 == res)
         {
             return NULL;
         }
 
-        res = read_stream(fd, eqs, &un_eq->flags, UNSO_FLAGS);
+        res = read_stream(fd, eqs, (void (*)(void*))free_equation, &un_eq->flags, UNSO_FLAGS);
         if (-1 == res)
         {
             return NULL;
         }
 
-        res = read_stream(fd, eqs, &un_eq->l_operand, L_OPERAND);
+        res = read_stream(fd, eqs, (void (*)(void*))free_equation, &un_eq->l_operand, L_OPERAND);
         if (-1 == res)
         {
             return NULL;
         }
 
-        res = read_stream(fd, eqs, &un_eq->opt, OPERATOR);
+        res = read_stream(fd, eqs, (void (*)(void*))free_equation, &un_eq->opt, OPERATOR);
         if (-1 == res)
         {
             return NULL;
         }
 
-        res = read_stream(fd, eqs, &un_eq->r_operand, R_OPERAND);
+        res = read_stream(fd, eqs, (void (*)(void*))free_equation, &un_eq->r_operand, R_OPERAND);
         if (-1 == res)
         {
             return NULL;
@@ -141,6 +187,11 @@ void free_equation(equations_t * eq)
     free(eq);
 }
 
+void free_header(net_header_t * header)
+{
+    free(header);
+}
+
 /*!
  * @brief Function repeatedly reads from the file descriptor passed in and
  * writes the data read into the buffer provided
@@ -151,14 +202,14 @@ void free_equation(equations_t * eq)
  * @return 0 if read was successful, -1 if invalid. Free eq if invalid before
  * returning
  */
-static int8_t read_stream(int fd, equations_t * eq, void * buff, size_t size)
+static int8_t read_stream(int fd, void * payload, void (free_func(void *)), void * buff, size_t size)
 {
     ssize_t read_bytes;
     read_bytes = read(fd, buff, size);
     if (size != read_bytes)
     {
         debug_print("%s", "Unable to properly read data from stream\n");
-        free_equation(eq);
+        free_func(payload);
         return -1;
     }
     return 0;

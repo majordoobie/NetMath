@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <server.h>
+#include <arpa/inet.h>
 
 extern "C"
 {
@@ -143,3 +144,4 @@ TEST(ServerListenTest, ServerListen)
     EXPECT_NE(sock_fd, -1);
     close(sock_fd);
 }
+
