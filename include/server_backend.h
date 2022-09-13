@@ -10,7 +10,7 @@ typedef enum
 {
     MAX_THREADS = UINT8_MAX,
     MIN_THREADS = 1,
-    MIN_PORT    = 1,
+    MIN_PORT    = 1024,       // Ports 1024+ are user defined ports
     MAX_PORT    = 0xFFFF,
     BACK_LOG    = 1024
 } server_defaults_t;

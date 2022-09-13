@@ -13,7 +13,6 @@ void start_server(uint8_t thread_count, uint32_t port_num)
     {
         return;
     }
-    sleep(15);
 
     thpool_t * thpool = thpool_init(thread_count);
     if (NULL == thpool)
@@ -53,7 +52,7 @@ DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len)
     if (0 != getaddrinfo(NULL, port_string, &hints, &network_record_root))
     {
 
-        debug_print_err("Unable to fetch socket structures: %s\n", strerror(errno));
+        debug_print_err("[SERVER] Unable to fetch socket structures: %s\n", strerror(errno));
         return -1;
     }
 
@@ -86,6 +85,8 @@ DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len)
             break; // If successful bind, break we are done
         }
 
+        debug_print("[SERVER] bind error: %s. Trying next record\n", strerror(errno));
+
         // If we get here, then we failed to make the current network_record
         // work. Close the socker fd and fetch the next one
         close(sock_fd);
@@ -95,24 +96,30 @@ DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len)
     // network records work
     if (NULL == network_record)
     {
-        debug_print_err("%s\n", "Unable to bind to any socket");
+        debug_print_err("%s\n", "[SERVER] Unable to bind to any socket");
         freeaddrinfo(network_record_root);
         return -1;
     }
 
     if (-1 == listen(sock_fd, BACK_LOG))
     {
-        debug_print_err("LISTEN: %s\n", strerror(errno));
+        debug_print_err("[SERVER] LISTEN: %s\n", strerror(errno));
         freeaddrinfo(network_record_root);
         return -1;
     }
 
     char host[NI_MAXHOST], service[NI_MAXSERV];
 
-    if (getnameinfo(network_record->ai_addr, network_record->ai_addrlen, host, NI_MAXHOST,
-                    service, NI_MAXSERV, NI_NUMERICSERV) == 0)
+    if (0 == getnameinfo(network_record->ai_addr, network_record->ai_addrlen, host, NI_MAXHOST,
+                    service, NI_MAXSERV, NI_NUMERICSERV))
+    {
+        debug_print("[SERVER] Listening on %s:%s\n", host, service);
+    }
+    else
+    {
+        debug_print("%s\n", "[SERVER] Unknown ip and port listening on");
+    }
 
-    debug_print("[Server] Listening on %s:%s\n", host, service);
 
     // Set the size of the structure used. This could change based on the
     // ip version used

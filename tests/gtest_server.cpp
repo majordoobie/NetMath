@@ -136,5 +136,10 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(ServerListenTest, ServerListen)
 {
     socklen_t len = 0;
-    server_listen(8080, &len);
+    int sock_fd = server_listen(1023, &len);
+    EXPECT_EQ(sock_fd, -1);
+
+    sock_fd = server_listen(1024, &len);
+    EXPECT_NE(sock_fd, -1);
+    close(sock_fd);
 }
