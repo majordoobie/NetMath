@@ -40,6 +40,7 @@ def _client_connection(args: argparse.Namespace, file_name: Path) -> None:
     file_name_len = len(file_name.name)
     # Raise error if the file name is too long
     if file_name_len > FILE_NAME_MAX_LENGTH:
+        print("Too long")
         raise ValueError(f"File {file_name.name} is too long")
 
     stream_size = file_name_len + len(data)

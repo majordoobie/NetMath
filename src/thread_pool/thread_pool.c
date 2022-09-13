@@ -395,7 +395,7 @@ static void thread_pool(worker_t * worker)
         // Block while the work queue is empty
         while ((0 == atomic_load(&thpool->work_queue->job_count)) && (1 == atomic_load(&thpool->thpool_active)))
         {
-            debug_print("[THPOOL] Thread %d waiting for a job.\n[threads: %d || working: %d]\n\n",
+            debug_print("[THPOOL] Thread %d waiting for a job...[threads: %d || working: %d]\n",
                         worker->id, thpool->workers_alive, thpool->workers_working);
             cnd_wait(&thpool->run_cond, &thpool->run_mutex);
         }
@@ -419,8 +419,8 @@ static void thread_pool(worker_t * worker)
 
         // Before beginning work, increment the working thread count
         atomic_fetch_add(&thpool->workers_working, 1);
-        debug_print("\n[THPOOL] Thread %d activated, starting work...\n"
-                    "[threads: %d || working: %d]\n\n",
+        debug_print("[THPOOL] Thread %d activated, starting work..."
+                    "[threads: %d || working: %d]\n",
                     worker->id,
                     atomic_load(&thpool->workers_alive),
                     atomic_load(&thpool->workers_working));
@@ -438,7 +438,7 @@ static void thread_pool(worker_t * worker)
         // Decrement threads working before going back to blocking
         atomic_fetch_sub(&thpool->workers_working, 1);
 
-        debug_print("\n[THPOOL] Thread %d finished work...\n[threads: %d || working: %d]\n\n",
+        debug_print("[THPOOL] Thread %d finished work... [threads: %d || working: %d]\n",
                     worker->id,
                     atomic_load(&thpool->workers_alive),
                     atomic_load(&thpool->workers_working));
@@ -451,7 +451,7 @@ static void thread_pool(worker_t * worker)
         }
     }
 
-    debug_print("\n[THPOOL] Thread %d is exiting...\n[threads: %d || working: %d]\n\n",
+    debug_print("[THPOOL] Thread %d is exiting...[threads: %d || working: %d]\n",
                 worker->id,
                 atomic_load(&thpool->workers_alive),
                 atomic_load(&thpool->workers_working));

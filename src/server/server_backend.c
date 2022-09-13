@@ -4,9 +4,11 @@
 #include <errno.h>
 #include <unistd.h>
 #include <header_parser.h>
+#include <stdlib.h>
 
 DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len);
 DEBUG_STATIC void serve_client(void * sock);
+static int get_ip_port(struct sockaddr * addr, socklen_t addr_size, char * host, char * port);
 void start_server(uint8_t thread_count, uint32_t port_num)
 {
 
@@ -25,14 +27,43 @@ void start_server(uint8_t thread_count, uint32_t port_num)
         return;
     }
 
+    struct sockaddr_storage client_addr;
+    socklen_t addr_size = sizeof(struct sockaddr_storage);
+
     for (;;)
     {
-        int client_fd = accept(server_socket, NULL, NULL);
+        // Clear the client_addr before the next connection
+        memset(&client_addr, 0, addr_size);
+        int client_fd = accept(server_socket, (struct sockaddr *)&client_addr, &addr_size);
         if (-1 == client_fd)
         {
             debug_print_err("Failed to accept: %s\n", strerror(errno));
         }
-        thpool_enqueue_job(thpool, serve_client, &client_fd);
+        else
+        {
+            char host[NI_MAXHOST];
+            char service[NI_MAXSERV];
+            if (0 == get_ip_port((struct sockaddr *)&client_addr, addr_size, host, service))
+            {
+                debug_print("[SERVER] Received connection from %s:%s\n", host, service);
+            }
+            else
+            {
+                printf("[SERVER] Received connection from unknown peer\n");
+            }
+            int * fd = (int *)malloc(sizeof(int));
+            if (UV_INVALID_ALLOC == verify_alloc((fd)))
+            {
+                debug_print_err("[SERVER] Unable to allocate memory for fd "
+                                "for connection %s:%s\n", host, service);
+                close(client_fd);
+            }
+            else
+            {
+                *fd = client_fd;
+                thpool_enqueue_job(thpool, serve_client, fd);
+            }
+        }
     }
 
     close(server_socket);
@@ -46,15 +77,17 @@ DEBUG_STATIC void serve_client(void * sock_void)
     net_header_t * header = read_header(client_sock);
     if (NULL == header)
     {
+        close(client_sock);
         debug_print_err("[SERVER THREAD] Invalid Read: %s\n", strerror(errno));
         return;
     }
 
-    printf("[SERVER THREAD]\nHeader size: %d\nName Len: %d\nTotal Packets: %lu\nFile Name: "
+    printf("[SERVER THREAD]\n\t\tHeader size: %d\n\t\tName Len: %d\n\t\tTotal Packets: %lu\n\t\tFile Name: "
            "%s\n", header->header_size, header->name_len, header->total_payload_size,
            header->file_name);
 
     close(client_sock);
+    free(sock_void);
     free_header(header);
 }
 
@@ -150,10 +183,9 @@ DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len)
         return -1;
     }
 
-    char host[NI_MAXHOST], service[NI_MAXSERV];
-
-    if (0 == getnameinfo(network_record->ai_addr, network_record->ai_addrlen, host, NI_MAXHOST,
-                    service, NI_MAXSERV, NI_NUMERICSERV))
+    char host[NI_MAXHOST];
+    char service[NI_MAXSERV];
+    if (0 == get_ip_port(network_record->ai_addr, network_record->ai_addrlen, host, service))
     {
         debug_print("[SERVER] Listening on %s:%s\n", host, service);
     }
@@ -174,3 +206,8 @@ DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len)
     return (network_record == NULL) ? -1 : sock_fd;
 }
 
+static int get_ip_port(struct sockaddr * addr, socklen_t addr_size, char * host, char * port)
+{
+    return getnameinfo(addr, addr_size, host, NI_MAXHOST, port, NI_MAXSERV, NI_NUMERICSERV);
+
+}

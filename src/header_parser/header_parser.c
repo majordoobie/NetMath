@@ -5,6 +5,8 @@
 #include <utils.h>
 #include <calculation.h>
 #include <arpa/inet.h>
+#include <errno.h>
+#include <string.h>
 
 static int8_t read_stream(int fd, void * payload, void (free_func(void *)), void * buff, size_t size);
 
@@ -16,21 +18,21 @@ net_header_t * read_header(int fd)
         return NULL;
     }
 
-    int res = read_stream(fd, header,(void (*)(void *))read_header, &header->header_size, NET_HEADER_SIZE);
+    int res = read_stream(fd, header,(void (*)(void *))free_header, &header->header_size, NET_HEADER_SIZE);
     if (-1 == res)
     {
         return NULL;
     }
     header->header_size = ntohl(header->header_size);
 
-    res = read_stream(fd, header,(void (*)(void *))read_header, &header->name_len, NET_FILE_NAME_LEN);
+    res = read_stream(fd, header,(void (*)(void *))free_header, &header->name_len, NET_FILE_NAME_LEN);
     if (-1 == res)
     {
         return NULL;
     }
     header->name_len = ntohl(header->name_len);
 
-    res = read_stream(fd, header,(void (*)(void *))read_header, &header->total_payload_size, NET_TOTAL_PACKET_SIZE);
+    res = read_stream(fd, header,(void (*)(void *))free_header, &header->total_payload_size, NET_TOTAL_PACKET_SIZE);
     if (-1 == res)
     {
         return NULL;
@@ -42,7 +44,7 @@ net_header_t * read_header(int fd)
     val = (val << 32) | (val >> 32);
     header->total_payload_size = val;
 
-    res = read_stream(fd, header,(void (*)(void *))read_header, &header->file_name, NET_FILE_NAME);
+    res = read_stream(fd, header,(void (*)(void *))free_header, &header->file_name, NET_FILE_NAME);
     if (-1 == res)
     {
         return NULL;
@@ -74,8 +76,7 @@ equations_t * parse_stream(int fd)
     }
     eqs->magic_id = magic_field;
 
-    int res = read_stream(fd, eqs,
-                          (void (*)(void *))free_equation, &eqs->file_id, HEAD_FILEID);
+    int res = read_stream(fd, eqs,(void (*)(void *))free_equation, &eqs->file_id, HEAD_FILEID);
     if (-1 == res)
     {
         return NULL;
@@ -206,9 +207,16 @@ static int8_t read_stream(int fd, void * payload, void (free_func(void *)), void
 {
     ssize_t read_bytes;
     read_bytes = read(fd, buff, size);
+    if (-1 == read_bytes)
+    {
+        debug_print_err("Unable to read from fd: %s\n", strerror(errno));
+        free_func(payload);
+        return -1;
+    }
     if (size != read_bytes)
     {
-        debug_print("%s", "Unable to properly read data from stream\n");
+        debug_print_err("[HEADER READ] Read bytes did not match expected "
+                        "bytes. Read %zd our of %zu\n", read_bytes, size);
         free_func(payload);
         return -1;
     }
