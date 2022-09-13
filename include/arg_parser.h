@@ -7,7 +7,6 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <utils.h>
 
 typedef enum
 {

@@ -2,12 +2,7 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-
-#ifdef NDEBUG
-#define DEBUG_STATIC static
-#else
-#define DEBUG_STATIC
-#endif
+#include <server.h>
 
 DEBUG_STATIC void free_args(args_t * args);
 DEBUG_STATIC uint32_t get_port(char * port);
