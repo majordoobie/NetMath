@@ -208,7 +208,7 @@ thpool_t * thpool_init(uint8_t thread_count)
      */
     while (thread_count != atomic_load(&thpool->workers_alive))
     {
-        debug_print("Waiting for threads to init [%d/%d]\n",
+        debug_print("[THPOOL] Waiting for threads to init [%d/%d]\n",
                     atomic_load(&thpool->workers_alive), thread_count);
         sleep(1);
     }
@@ -229,14 +229,14 @@ void thpool_wait(thpool_t * thpool)
     mtx_lock(&thpool->wait_mutex);
     while ((0 != atomic_load(&thpool->workers_working)) || (0 != atomic_load(&thpool->work_queue->job_count)))
     {
-        debug_print("\n[!] Waiting for threadpool to finish "
+        debug_print("\n[THPOOL] Waiting for threadpool to finish "
                     "[Workers working: %d] || [Jobs in queue: %ld]\n",
                     atomic_load(&thpool->workers_working),
                     atomic_load(&thpool->work_queue->job_count));
 
         cnd_wait(&thpool->wait_cond, &thpool->wait_mutex);
     }
-    debug_print("%s\n", "Finished waiting...");
+    debug_print("%s\n", "[THPOOL] Finished waiting...");
 
     mtx_unlock(&thpool->wait_mutex);
 }
@@ -255,7 +255,7 @@ void thpool_destroy(thpool_t * thpool)
     // update all the threads until they are done with their tasks
     while (0 != atomic_load(&thpool->workers_alive))
     {
-        debug_print("\n[!] Broadcasting threads to exit...\n"
+        debug_print("\n[THPOOL] Broadcasting threads to exit...\n"
                     "Workers still alive: %d\n",
                     atomic_load(&thpool->workers_alive));
         cnd_broadcast(&thpool->run_cond);
@@ -330,7 +330,7 @@ thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *
 
     // Signal at least one thread that the run condition has changed
     // indicating that a new job has been added to the queue
-    debug_print("[!] New job enqueued. Total jobs in queue: %ld\n",
+    debug_print("[THPOOL] New job enqueued. Total jobs in queue: %ld\n",
                 atomic_load(&work_queue->job_count));
 
 
@@ -395,7 +395,7 @@ static void thread_pool(worker_t * worker)
         // Block while the work queue is empty
         while ((0 == atomic_load(&thpool->work_queue->job_count)) && (1 == atomic_load(&thpool->thpool_active)))
         {
-            debug_print("[!] Thread %d waiting for a job.\n[threads: %d || working: %d]\n\n",
+            debug_print("[THPOOL] Thread %d waiting for a job.\n[threads: %d || working: %d]\n\n",
                         worker->id, thpool->workers_alive, thpool->workers_working);
             cnd_wait(&thpool->run_cond, &thpool->run_mutex);
         }
@@ -419,7 +419,7 @@ static void thread_pool(worker_t * worker)
 
         // Before beginning work, increment the working thread count
         atomic_fetch_add(&thpool->workers_working, 1);
-        debug_print("\n[!] Thread %d activated, starting work...\n"
+        debug_print("\n[THPOOL] Thread %d activated, starting work...\n"
                     "[threads: %d || working: %d]\n\n",
                     worker->id,
                     atomic_load(&thpool->workers_alive),
@@ -438,7 +438,7 @@ static void thread_pool(worker_t * worker)
         // Decrement threads working before going back to blocking
         atomic_fetch_sub(&thpool->workers_working, 1);
 
-        debug_print("\n[!] Thread %d finished work...\n[threads: %d || working: %d]\n\n",
+        debug_print("\n[THPOOL] Thread %d finished work...\n[threads: %d || working: %d]\n\n",
                     worker->id,
                     atomic_load(&thpool->workers_alive),
                     atomic_load(&thpool->workers_working));
@@ -451,7 +451,7 @@ static void thread_pool(worker_t * worker)
         }
     }
 
-    debug_print("\n[!] Thread %d is exiting...\n[threads: %d || working: %d]\n\n",
+    debug_print("\n[THPOOL] Thread %d is exiting...\n[threads: %d || working: %d]\n\n",
                 worker->id,
                 atomic_load(&thpool->workers_alive),
                 atomic_load(&thpool->workers_working));

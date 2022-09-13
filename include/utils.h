@@ -54,7 +54,7 @@ typedef enum util_verify_t
 /*
  * Function is used to verify that a pointer is not NULL. This is used to
  * check allocations of memory. A stderr message is printed and a util_verify_t
- * is rturned
+ * is returned
  */
 util_verify_t verify_alloc(void * ptr);
 

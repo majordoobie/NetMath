@@ -1,18 +1,13 @@
 #include <gtest/gtest.h>
 #include <server.h>
 
-TEST(Test1, Test2)
-{
-    start_server(2, 2);
-    EXPECT_EQ(1, 1);
-}
-
 extern "C"
 {
     args_t * parse_args(int argc, char ** argv);
     void free_args(args_t * args);
     uint32_t get_port(char * port);
     uint8_t get_threads(char * thread);
+    int server_listen(uint32_t port, socklen_t * record_len);
 }
 
 class ServerTestValidPorts : public ::testing::TestWithParam<std::tuple<std::string, bool>>{};
@@ -136,3 +131,10 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(std::vector<std::string>{__FILE__, "-w", "10", "-p", "10"}, true),
         std::make_tuple(std::vector<std::string>{__FILE__}, false)
     ));
+
+
+TEST(ServerListenTest, ServerListen)
+{
+    socklen_t len = 0;
+    server_listen(8080, &len);
+}
