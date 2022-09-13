@@ -31,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(
     PortTest,
     ServerTestValidPorts,
     ::testing::Values(
-        std::make_tuple("1", false),
+        std::make_tuple("1", true),
         std::make_tuple("60000", false),
         std::make_tuple("65535", false),
         std::make_tuple("65536", true),
@@ -112,7 +112,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         std::make_tuple(std::vector<std::string>{__FILE__, "-p", "31337"}, false),
         std::make_tuple(std::vector<std::string>{__FILE__, "-h"}, true),
-        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "1"}, false),
+        std::make_tuple(std::vector<std::string>{__FILE__, "-p", "1"}, true),
         std::make_tuple(std::vector<std::string>{__FILE__, "-p", "65535"}, false),
         std::make_tuple(std::vector<std::string>{__FILE__, "-p", "65536"}, true),
         std::make_tuple(std::vector<std::string>{__FILE__, "-p", "0"}, true),

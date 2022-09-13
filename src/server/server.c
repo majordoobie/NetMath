@@ -13,6 +13,8 @@ int main(int argc, char ** argv)
         exit(-1);
     }
 
+    start_server(args->threads, args->port);
+
     free_args(args);
 }
 
