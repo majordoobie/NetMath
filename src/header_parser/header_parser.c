@@ -11,6 +11,11 @@
 
 static int8_t read_stream(int fd, void * payload, void (free_func(void *)), void * caller_buffer, size_t bytes_to_read);
 
+/*!
+ * Read from the provided file descriptor the network header
+ * @param fd File descriptor to read from
+ * @return net_header_t object if valid read else NULL
+ */
 net_header_t * read_header(int fd)
 {
     net_header_t * header = (net_header_t *)calloc(1, sizeof(net_header_t));
@@ -49,6 +54,11 @@ net_header_t * read_header(int fd)
     return header;
 }
 
+/*!
+ * @brief Perform a byte order swap of a 64 bit value
+ * @param val Value to swap
+ * @return Swapped value
+ */
 uint64_t swap_byte_order(uint64_t val)
 {
     val = ((val << 8) & 0xFF00FF00FF00FF00ULL ) | ((val >> 8) & 0x00FF00FF00FF00FFULL );
