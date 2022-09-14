@@ -210,9 +210,9 @@ thpool_t * thpool_init(uint8_t thread_count)
     {
         debug_print("[THPOOL] Waiting for threads to init [%d/%d]\n",
                     atomic_load(&thpool->workers_alive), thread_count);
-        sleep(1);
+        usleep(200000);
     }
-
+    debug_print("%s\n", "[THPOOL] Thread pool ready\n");
     return thpool;
 }
 

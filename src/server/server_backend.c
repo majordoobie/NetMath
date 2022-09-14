@@ -5,10 +5,16 @@
 #include <unistd.h>
 #include <header_parser.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <stdatomic.h>
 
 DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len);
 DEBUG_STATIC void serve_client(void * sock);
 static int get_ip_port(struct sockaddr * addr, socklen_t addr_size, char * host, char * port);
+static void signal_handler(int signal);
+
+static atomic_flag server_run;
+
 void start_server(uint8_t thread_count, uint32_t port_num)
 {
 
@@ -27,10 +33,27 @@ void start_server(uint8_t thread_count, uint32_t port_num)
         return;
     }
 
+
+    // Set up SIGINT signal handling
+	struct sigaction signal_action;
+	memset(&signal_action, 0, sizeof(signal_action));
+	signal_action.sa_handler = signal_handler;
+
+	// Make the system call to change the action taken by the process on receipt
+	// of the signal
+	if (-1 == (sigaction(SIGINT, &signal_action, NULL)))
+	{
+        debug_print_err("%s\n", "Unable to set up signal handler");
+        close(server_socket);
+        thpool_destroy(thpool);
+        return;
+	}
+
     struct sockaddr_storage client_addr;
     socklen_t addr_size = sizeof(struct sockaddr_storage);
 
-    for (;;)
+    atomic_flag_test_and_set(&server_run);
+    while (atomic_flag_test_and_set(&server_run))
     {
         // Clear the client_addr before the next connection
         memset(&client_addr, 0, addr_size);
@@ -66,6 +89,10 @@ void start_server(uint8_t thread_count, uint32_t port_num)
         }
     }
 
+    // Wait for all the jobs to finish
+    thpool_wait(thpool);
+
+    // Close the server
     close(server_socket);
     thpool_destroy(thpool);
 }
@@ -210,4 +237,10 @@ static int get_ip_port(struct sockaddr * addr, socklen_t addr_size, char * host,
 {
     return getnameinfo(addr, addr_size, host, NI_MAXHOST, port, NI_MAXSERV, NI_NUMERICSERV);
 
+}
+
+static void signal_handler(int signal)
+{
+    debug_print("%s\n", "[SERVER] Gracefully shutting down...");
+    atomic_flag_clear(&server_run);
 }
