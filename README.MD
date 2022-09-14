@@ -1,7 +1,20 @@
 # TL;DR
 Just run the following and the script will handle everything for you
 ```bash
+# Runs all unit tests
 python3 builder.py --run-all
+```
+
+Or run the server and client
+```bash
+# build project
+python3 builder.py --build
+
+# Start th server
+./build/bin/server
+
+# Start the client
+python3 src/client/client.py -i tests/unsolved -o tests/solved
 ```
 
 # How to compile
