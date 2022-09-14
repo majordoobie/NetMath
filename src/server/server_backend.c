@@ -13,6 +13,9 @@ DEBUG_STATIC void serve_client(void * sock);
 static int get_ip_port(struct sockaddr * addr, socklen_t addr_size, char * host, char * port);
 static void signal_handler(int signal);
 static void error_reply(void * sock_oid, net_header_t * header);
+static void serialize_header(net_header_t * header,
+                             uint8_t * buffer,
+                             size_t buffer_size);
 
 void error_reply(void * sock_oid, net_header_t * header);
 // Atomic flag is used to control the server running
@@ -140,6 +143,7 @@ DEBUG_STATIC void serve_client(void * sock_void)
                     header->header_size);
 
         error_reply(sock_void, header);
+        return;
 
     }
 
@@ -148,6 +152,8 @@ DEBUG_STATIC void serve_client(void * sock_void)
         debug_print("[SERVER THREAD] File name length exceeds the size limit "
                     "of %d. The length is set to %d\n", NET_MAX_FILE_NAME,
                     header->name_len);
+        error_reply(sock_void, header);
+        return;
     }
 
     close(client_sock);
@@ -157,9 +163,47 @@ DEBUG_STATIC void serve_client(void * sock_void)
 
 static void error_reply(void * sock_void, net_header_t * header)
 {
-//    int client_sock = *(int *)sock_void;
+    int client_sock = *(int *)sock_void;
     header->name_len = 0;
     memset(header->file_name, 0, NET_MAX_FILE_NAME);
+
+    uint8_t * buffer = (uint8_t *)calloc(NET_MAX_HEADER_SIZE, sizeof(uint8_t));
+    if (UV_INVALID_ALLOC == verify_alloc(buffer))
+    {
+        return;
+    }
+
+    serialize_header(header, buffer, NET_MAX_HEADER_SIZE);
+    ssize_t res = write(client_sock, buffer, NET_MAX_HEADER_SIZE);
+    if (-1 == res)
+    {
+        debug_print_err("[SERVER THREAD] Error writting %s\n", strerror(errno));
+    }
+
+    free(buffer);
+    free_header(header);
+    close(client_sock);
+    free(sock_void);
+}
+
+static void serialize_header(net_header_t * header, uint8_t * buffer, size_t buffer_size)
+{
+    size_t offset = 0;
+    uint32_t buff = 0;
+
+    buff = htonl(header->header_size);
+    memcpy(buffer, &buff, NET_HEADER_SIZE);
+    offset += NET_HEADER_SIZE;
+
+    buff = htonl(header->name_len);
+    memcpy(buffer + offset, &buff, NET_FILE_NAME_LEN);
+    offset += NET_FILE_NAME_LEN;
+
+    uint64_t buff64 = swap_byte_order(header->total_payload_size);
+    memcpy(buffer + offset, &buff64, NET_TOTAL_PACKET_SIZE);
+    offset += NET_TOTAL_PACKET_SIZE;
+
+    memcpy(buffer + offset, &header->file_name, NET_FILE_NAME);
 }
 
 /*!

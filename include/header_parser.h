@@ -95,6 +95,7 @@ equations_t * parse_stream(int fd);
 net_header_t * read_header(int fd);
 void free_equation(equations_t * eq);
 void free_header(net_header_t * header);
+uint64_t swap_byte_order(uint64_t val);
 
 #ifdef __cplusplus
 }

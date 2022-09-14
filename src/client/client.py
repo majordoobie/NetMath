@@ -18,16 +18,16 @@ def main():
     file_names = [file.resolve() for file in args.in_folder.iterdir()
                   if file.suffix == ".equ"]
 
-    # f = []
-    # print(len(file_names))
-    # print(file_names[0])
-    # f.append(file_names[0])
-    # file_names = f
-    file_names.extend(file_names)
-    file_names.extend(file_names)
-    file_names.extend(file_names)
-    file_names.extend(file_names)
-    file_names.extend(file_names)
+    f = []
+    print(len(file_names))
+    print(file_names[0])
+    f.append(file_names[0])
+    file_names = f
+    # file_names.extend(file_names)
+    # file_names.extend(file_names)
+    # file_names.extend(file_names)
+    # file_names.extend(file_names)
+    # file_names.extend(file_names)
     # file_names.extend(file_names)
     # file_names.extend(file_names)
     # file_names.extend(file_names)
@@ -62,7 +62,7 @@ def _client_connection(args: argparse.Namespace, file_name: Path) -> None:
 
     stream_size = file_name_len + len(data)
 
-    header = struct.pack(">IIQ32s", NET_HEADER_SIZE, file_name_len,
+    header = struct.pack(">IIQ32s", NET_HEADER_SIZE + 3, file_name_len,
                          stream_size, file_name.name.encode(encoding="utf-8"))
 
     if len(header) != NET_HEADER_SIZE:
@@ -79,6 +79,8 @@ def _client_connection(args: argparse.Namespace, file_name: Path) -> None:
         fd.send(header[0:10])
         fd.send(header[10:])
         fd.sendall(data)
+
+        print(struct.unpack(">IIQ32s", fd.recv(1024)))
 
 
 def _verify_dirs(args: argparse.Namespace) -> None:

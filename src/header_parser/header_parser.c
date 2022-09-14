@@ -38,12 +38,7 @@ net_header_t * read_header(int fd)
     {
         return NULL;
     }
-    // Swap the byte order of the 64 bit value
-    uint64_t val = header->total_payload_size;
-    val = ((val << 8) & 0xFF00FF00FF00FF00ULL ) | ((val >> 8) & 0x00FF00FF00FF00FFULL );
-    val = ((val << 16) & 0xFFFF0000FFFF0000ULL ) | ((val >> 16) & 0x0000FFFF0000FFFFULL );
-    val = (val << 32) | (val >> 32);
-    header->total_payload_size = val;
+    header->total_payload_size = swap_byte_order(header->total_payload_size);
 
     res = read_stream(fd, header,(void (*)(void *))free_header, &header->file_name, NET_FILE_NAME);
     if (-1 == res)
@@ -52,6 +47,14 @@ net_header_t * read_header(int fd)
     }
 
     return header;
+}
+
+uint64_t swap_byte_order(uint64_t val)
+{
+    val = ((val << 8) & 0xFF00FF00FF00FF00ULL ) | ((val >> 8) & 0x00FF00FF00FF00FFULL );
+    val = ((val << 16) & 0xFFFF0000FFFF0000ULL ) | ((val >> 16) & 0x0000FFFF0000FFFFULL );
+    val = (val << 32) | (val >> 32);
+    return val;
 }
 
 /*!
