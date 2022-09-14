@@ -105,6 +105,7 @@ DEBUG_STATIC void serve_client(void * sock_void)
     if (NULL == header)
     {
         close(client_sock);
+        free(sock_void);
         debug_print_err("[SERVER THREAD] Invalid Read: %s\n", strerror(errno));
         return;
     }
