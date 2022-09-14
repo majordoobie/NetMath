@@ -7,8 +7,9 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>
+#include <stdbool.h>
 
-static int8_t read_stream(int fd, void * payload, void (free_func(void *)), void * buff, size_t size);
+static int8_t read_stream(int fd, void * payload, void (free_func(void *)), void * caller_buffer, size_t bytes_to_read);
 
 net_header_t * read_header(int fd)
 {
@@ -198,27 +199,67 @@ void free_header(net_header_t * header)
  * writes the data read into the buffer provided
  * @param fd File descriptor read
  * @param eq Equation structure object
- * @param buff Buffer to write the read data to
- * @param size Number of bytes to read from the file descriptor
+ * @param caller_buffer Buffer to write the read data to
+ * @param bytes_to_read Number of bytes to read from the file descriptor
  * @return 0 if read was successful, -1 if invalid. Free eq if invalid before
  * returning
  */
-static int8_t read_stream(int fd, void * payload, void (free_func(void *)), void * buff, size_t size)
+static int8_t read_stream(int fd, void * payload, void (free_func(void *)), void * caller_buffer, size_t bytes_to_read)
 {
     ssize_t read_bytes;
-    read_bytes = read(fd, buff, size);
-    if (-1 == read_bytes)
+    ssize_t total_bytes_read = 0;
+
+    // Buffer will be used to read from the file descriptor
+    uint8_t * read_buffer = (uint8_t *)calloc(1, bytes_to_read + 1);
+    uint8_t * payload_buffer = (uint8_t *)calloc(1, bytes_to_read + 1);
+    if (UV_INVALID_ALLOC == verify_alloc(read_buffer))
     {
-        debug_print_err("Unable to read from fd: %s\n", strerror(errno));
+        debug_print_err("%s\n", "Unable to allocate memory for read_buffer");
         free_func(payload);
         return -1;
     }
-    if (size != read_bytes)
+
+    bool keep_reading = true;
+    while (keep_reading)
     {
-        debug_print_err("[HEADER READ] Read bytes did not match expected "
-                        "bytes. Read %zd our of %zu\n", read_bytes, size);
-        free_func(payload);
-        return -1;
+        read_bytes = read(fd, read_buffer, 1);
+        if (-1 == read_bytes)
+        {
+            // If timed out, display message indicating that it timed out
+            if ((EAGAIN == errno) || (EWOULDBLOCK == errno))
+            {
+                debug_print("%s\n", "[STREAM READ] Read timed out");
+            }
+            else
+            {
+                debug_print_err("[STREAM READ] Unable to read from fd: %s\n", strerror(errno));
+            }
+            free_func(payload);
+            return -1;
+        }
+        else if (0 == read_bytes)
+        {
+            debug_print_err("%s\n", "[STREAM READ] Read zero bytes. Client likely closed connection.");
+            free_func(payload);
+            return -1;
+        }
+
+        // Use string operations to concatenate the final payload buffer
+        memcpy(payload_buffer + total_bytes_read, read_buffer, (unsigned long)read_bytes);
+        total_bytes_read = total_bytes_read + read_bytes;
+
+        if (total_bytes_read == bytes_to_read)
+        {
+            keep_reading = false;
+        }
     }
+
+    // Copy the data read into the callers buffer
+    memcpy(caller_buffer, payload_buffer, bytes_to_read);
+
+    // Free the working buffers
+    free(read_buffer);
+    free(payload_buffer);
+
     return 0;
 }

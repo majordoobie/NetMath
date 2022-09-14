@@ -12,9 +12,20 @@ DEBUG_STATIC int server_listen(uint32_t port, socklen_t * record_len);
 DEBUG_STATIC void serve_client(void * sock);
 static int get_ip_port(struct sockaddr * addr, socklen_t addr_size, char * host, char * port);
 static void signal_handler(int signal);
+static void error_reply(void * sock_oid, net_header_t * header);
 
+void error_reply(void * sock_oid, net_header_t * header);
+// Atomic flag is used to control the server running
 static atomic_flag server_run;
 
+/*!
+ * @brief Start the EQU server on the specified ports. The function will
+ * also spawn a thread pool object with the thread_count of the value
+ * provided
+ *
+ * @param thread_count Number of threads to spawn in the thread pool
+ * @param port_num Port number to listen on
+ */
 void start_server(uint8_t thread_count, uint32_t port_num)
 {
 
@@ -97,6 +108,15 @@ void start_server(uint8_t thread_count, uint32_t port_num)
     thpool_destroy(thpool);
 }
 
+/*!
+ * @brief This function is a thread callback. As soon as the server
+ * receives a connection, the server will queue the connection into the
+ * threadpool job queue. Once the job is dequeued, the thread will execute
+ * this callback function. This is where the individual files are parsed
+ * and returned to the client.
+ *
+ * @param sock_void Void pointer containing the connection file descriptor
+ */
 DEBUG_STATIC void serve_client(void * sock_void)
 {
     int client_sock = *(int *)sock_void;
@@ -106,7 +126,6 @@ DEBUG_STATIC void serve_client(void * sock_void)
     {
         close(client_sock);
         free(sock_void);
-        debug_print_err("[SERVER THREAD] Invalid Read: %s\n", strerror(errno));
         return;
     }
 
@@ -114,9 +133,33 @@ DEBUG_STATIC void serve_client(void * sock_void)
            "%s\n", header->header_size, header->name_len, header->total_payload_size,
            header->file_name);
 
+    if (NET_MAX_HEADER_SIZE != header->header_size)
+    {
+        debug_print("[SERVER THREAD] Header size does not match the expected "
+                    "value of %d. Read %u instead\n", NET_MAX_HEADER_SIZE,
+                    header->header_size);
+
+        error_reply(sock_void, header);
+
+    }
+
+    if (header->name_len > NET_MAX_FILE_NAME)
+    {
+        debug_print("[SERVER THREAD] File name length exceeds the size limit "
+                    "of %d. The length is set to %d\n", NET_MAX_FILE_NAME,
+                    header->name_len);
+    }
+
     close(client_sock);
     free(sock_void);
     free_header(header);
+}
+
+static void error_reply(void * sock_void, net_header_t * header)
+{
+//    int client_sock = *(int *)sock_void;
+    header->name_len = 0;
+    memset(header->file_name, 0, NET_MAX_FILE_NAME);
 }
 
 /*!

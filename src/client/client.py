@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import pickle
 import struct
 from concurrent.futures import ThreadPoolExecutor, as_completed, wait, \
     ALL_COMPLETED
@@ -16,6 +17,22 @@ def main():
 
     file_names = [file.resolve() for file in args.in_folder.iterdir()
                   if file.suffix == ".equ"]
+
+    # f = []
+    # print(len(file_names))
+    # print(file_names[0])
+    # f.append(file_names[0])
+    # file_names = f
+    file_names.extend(file_names)
+    file_names.extend(file_names)
+    file_names.extend(file_names)
+    file_names.extend(file_names)
+    file_names.extend(file_names)
+    # file_names.extend(file_names)
+    # file_names.extend(file_names)
+    # file_names.extend(file_names)
+    # file_names.extend(file_names)
+    # file_names.extend(file_names)
 
     if not file_names:
         exit("Did not find any .equ files to parse")
@@ -51,12 +68,17 @@ def _client_connection(args: argparse.Namespace, file_name: Path) -> None:
     if len(header) != NET_HEADER_SIZE:
         raise ValueError(f"Header size is too big for file {file_name.name}")
 
-    print(f"[Client]\nHeader size: {NET_HEADER_SIZE}\nName Len: {file_name_len}\n"
-          f"Total Packets: {stream_size}\nFilename: {file_name}\n")
+    #
+    # print(f"[Client]\nHeader size: {NET_HEADER_SIZE}\nName Len: {file_name_len}\n"
+    #       f"Total Packets: {stream_size}\nFilename: {file_name}\n")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as fd:
         fd.connect((args.host, args.port))
-        fd.sendall(header + data)
+        # fd.send("H".encode())
+        # fd.sendall(header)
+        fd.send(header[0:10])
+        fd.send(header[10:])
+        fd.sendall(data)
 
 
 def _verify_dirs(args: argparse.Namespace) -> None:
