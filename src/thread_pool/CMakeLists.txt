@@ -1,4 +1,4 @@
-include(BuildUtils)
+include(build_utils)
 
 add_library(thread_pool SHARED thread_pool.c)
 target_link_libraries(thread_pool PUBLIC utils)

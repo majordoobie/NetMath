@@ -1,4 +1,4 @@
-include(BuildUtils)
+include(build_utils)
 
 #
 # Test the actual calculations between operands and test the parsing of the

@@ -1,4 +1,4 @@
-include(BuildUtils)
+include(build_utils)
 
 add_library(header_parser SHARED header_parser.c)
 target_link_libraries(header_parser PUBLIC utils calculation)

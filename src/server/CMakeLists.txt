@@ -1,4 +1,4 @@
-include(BuildUtils)
+include(build_utils)
 
 add_library(server_backend SHARED arg_parser.c server_backend.c)
 target_link_libraries(server_backend PUBLIC utils thread_pool header_parser)
