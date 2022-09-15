@@ -264,7 +264,7 @@ void thpool_destroy(thpool_t ** thpool_ptr)
                     "Workers still alive: %d\n",
                     atomic_load(&thpool->workers_alive));
         cnd_broadcast(&thpool->run_cond);
-        sleep(1);
+        usleep(200000);
     }
 
     // Free any jobs left in the queue that have not been consumed
