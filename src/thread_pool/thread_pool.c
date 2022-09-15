@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdatomic.h>
-
+#include <assert.h>
 
 // Worker objects is a struct containing a pointer to the thpool and the
 // thread itself
@@ -108,7 +108,7 @@ thpool_t * thpool_init(uint8_t thread_count)
     work_queue_t * work_queue = (work_queue_t *)calloc(1, sizeof(work_queue_t));
     if (UV_INVALID_ALLOC == verify_alloc(work_queue))
     {
-        thpool_destroy(thpool);
+        thpool_destroy(&thpool);
         return NULL;
     }
 
@@ -122,35 +122,35 @@ thpool_t * thpool_init(uint8_t thread_count)
     if (thrd_success != result)
     {
         debug_print_err("%s", "Unable to init run_mutex\n");
-        thpool_destroy(thpool);
+        thpool_destroy(&thpool);
         return NULL;
     }
     result = cnd_init(&thpool->run_cond);
     if (thrd_success != result)
     {
         debug_print_err("%s", "Unable to init run_cond\n");
-        thpool_destroy(thpool);
+        thpool_destroy(&thpool);
         return NULL;
     }
     result = mtx_init(&work_queue->queue_access_mutex, mtx_plain);
     if (thrd_success != result)
     {
         debug_print_err("%s", "Unable to init queue_access\n");
-        thpool_destroy(thpool);
+        thpool_destroy(&thpool);
         return NULL;
     }
     result = mtx_init(&thpool->wait_mutex, mtx_plain);
     if (thrd_success != result)
     {
         debug_print_err("%s", "Unable to init wait_mutex\n");
-        thpool_destroy(thpool);
+        thpool_destroy(&thpool);
         return NULL;
     }
     result = cnd_init(&thpool->wait_cond);
     if (thrd_success != result)
     {
         debug_print_err("%s", "Unable to init wait_cond\n");
-        thpool_destroy(thpool);
+        thpool_destroy(&thpool);
         return NULL;
     }
 
@@ -176,7 +176,7 @@ thpool_t * thpool_init(uint8_t thread_count)
         worker_t * worker = thpool->workers[i];
         if (UV_INVALID_ALLOC == verify_alloc(worker))
         {
-            thpool_destroy(thpool);
+            thpool_destroy(&thpool);
             return NULL;
         }
 
@@ -187,7 +187,7 @@ thpool_t * thpool_init(uint8_t thread_count)
         if (thrd_success != result)
         {
             debug_print_err("%s", "Unable to create a thread for the thread pool\n");
-            thpool_destroy(thpool);
+            thpool_destroy(&thpool);
             return NULL;
 
         }
@@ -195,7 +195,7 @@ thpool_t * thpool_init(uint8_t thread_count)
         if (thrd_success != result)
         {
             debug_print_err("%s", "Unable to detach thread\n");
-            thpool_destroy(thpool);
+            thpool_destroy(&thpool);
             return NULL;
         }
 
@@ -225,6 +225,7 @@ thpool_t * thpool_init(uint8_t thread_count)
  */
 void thpool_wait(thpool_t * thpool)
 {
+    assert(thpool);
 
     mtx_lock(&thpool->wait_mutex);
     while ((0 != atomic_load(&thpool->workers_working)) || (0 != atomic_load(&thpool->work_queue->job_count)))
@@ -245,8 +246,12 @@ void thpool_wait(thpool_t * thpool)
  * @brief Free the thread pool
  * @param thpool Pointer to the threadpool object
  */
-void thpool_destroy(thpool_t * thpool)
+void thpool_destroy(thpool_t ** thpool_ptr)
 {
+    assert(thpool_ptr);
+    thpool_t * thpool = * thpool_ptr;
+    assert(thpool);
+
     // Set running bool to false and set the queue to have a value of 1
     // instructing the threads to look for work.
     atomic_fetch_sub(&thpool->thpool_active, 1);
@@ -268,6 +273,7 @@ void thpool_destroy(thpool_t * thpool)
     while (NULL != job)
     {
         temp = job->next_job;
+        job->next_job = NULL;
         free(job);
         job = temp;
     }
@@ -275,7 +281,9 @@ void thpool_destroy(thpool_t * thpool)
     // Free the threads
     for (uint8_t i = 0; i < thpool->thread_count; i++)
     {
-        free(thpool->workers[i]);
+        worker_t * worker = thpool->workers[i];
+        worker->thpool = NULL;
+        free(worker);
     }
 
 
@@ -285,8 +293,11 @@ void thpool_destroy(thpool_t * thpool)
     mtx_destroy(&thpool->work_queue->queue_access_mutex);
 
     free(thpool->work_queue);
+    thpool->work_queue = NULL;
     free(thpool->workers);
+    thpool->workers = NULL;
     free(thpool);
+    thpool_ptr = NULL;
 }
 
 
@@ -302,6 +313,10 @@ void thpool_destroy(thpool_t * thpool)
  */
 thpool_status thpool_enqueue_job(thpool_t * thpool, void (* job_function)(void *), void * job_arg)
 {
+    // No need to check args, args can be NULL
+    assert(thpool);
+    assert(job_function);
+
     job_t * job = (job_t *)malloc(sizeof(job_t));
     if (UV_INVALID_ALLOC == verify_alloc(job))
     {

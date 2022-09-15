@@ -59,7 +59,7 @@ void start_server(uint8_t thread_count, uint32_t port_num)
 	{
         debug_print_err("%s\n", "Unable to set up signal handler");
         close(server_socket);
-        thpool_destroy(thpool);
+        thpool_destroy(&thpool);
         return;
 	}
 
@@ -108,7 +108,7 @@ void start_server(uint8_t thread_count, uint32_t port_num)
 
     // Close the server
     close(server_socket);
-    thpool_destroy(thpool);
+    thpool_destroy(&thpool);
 }
 
 /*!
