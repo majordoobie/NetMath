@@ -294,10 +294,12 @@ void thpool_destroy(thpool_t ** thpool_ptr)
 
     free(thpool->work_queue);
     thpool->work_queue = NULL;
+
     free(thpool->workers);
     thpool->workers = NULL;
+
     free(thpool);
-    thpool_ptr = NULL;
+    *thpool_ptr = NULL;
 }
 
 
