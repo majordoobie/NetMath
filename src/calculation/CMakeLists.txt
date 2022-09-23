@@ -1,4 +1,4 @@
-include(BuildUtils)
+include(build_utils)
 
 add_library(calculation SHARED calculation.c)
 target_link_libraries(calculation PUBLIC utils)

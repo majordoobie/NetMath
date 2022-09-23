@@ -31,7 +31,7 @@ int get_file(const char * file_name)
 
 TEST(Simple, Simple)
 {
-    const char * file_name = "valid_3a78786203e77c0b.equ";
+    const char * file_name = "3a78786203e77c0b.equ";
     int file = get_file(file_name);
     ASSERT_NE(file, -1) << "[!] File provided " << file_name << " was not found\n";
 

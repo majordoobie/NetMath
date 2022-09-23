@@ -22,7 +22,7 @@ class ThreadPoolTextFixture : public ::testing::Test
     }
     void TearDown() override
     {
-        thpool_destroy(this->thpool);
+        thpool_destroy(&(this->thpool));
     }
 };
 

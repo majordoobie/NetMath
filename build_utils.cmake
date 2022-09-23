@@ -67,6 +67,7 @@ FUNCTION(set_project_properties target_name target_include_dir)
     set_target_properties(
             ${target_name} PROPERTIES
             LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
             COMPILE_OPTIONS "${base_flags}"
             LINK_OPTIONS "${base_static_analysis}"
     )
